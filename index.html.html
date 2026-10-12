@@ -1,0 +1,1093 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>SFR — Scheda di Sopralluogo 2026 (v4)</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+:root{
+  --verde:#1A5C2A;--verde-l:#E6F0E8;--verde-m:#2E7D32;
+  --blu:#1565C0;--blu-l:#E3F2FD;
+  --grigio:#F5F5F5;--grigio2:#E0E0E0;--grigio3:#9E9E9E;
+  --testo:#1A1A1A;--bianco:#FFFFFF;
+  --rosso:#C62828;--oro:#F57F17;--oro-l:#FFF8E1;
+  --shadow:0 2px 8px rgba(0,0,0,.12);--radius:10px;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Segoe UI',Arial,sans-serif;background:#EEF3EE;color:var(--testo);min-height:100vh;}
+
+/* SETUP OVERLAY */
+.setup-overlay{position:fixed;inset:0;background:var(--verde);z-index:999;
+  display:flex;align-items:center;justify-content:center;padding:20px;}
+.setup-box{background:#fff;border-radius:16px;padding:28px 24px;max-width:420px;width:100%;
+  box-shadow:0 8px 32px rgba(0,0,0,.25);}
+.setup-logo{font-size:40px;text-align:center;margin-bottom:8px;}
+.setup-title{font-size:18px;font-weight:700;color:var(--verde);text-align:center;margin-bottom:4px;}
+.setup-sub{font-size:12px;color:var(--grigio3);text-align:center;margin-bottom:20px;}
+.setup-btn{width:100%;background:var(--verde);color:#fff;border:none;border-radius:10px;
+  padding:14px;font-size:14px;font-weight:700;cursor:pointer;margin-top:8px;}
+.setup-btn:hover{background:var(--verde-m);}
+
+/* HEADER */
+.hdr{background:var(--verde);color:#fff;padding:12px 16px;display:flex;align-items:center;gap:10px;
+  box-shadow:var(--shadow);position:sticky;top:0;z-index:100;}
+.hdr-logo{font-size:22px;}
+.hdr-info{flex:1;}
+.hdr-title{font-size:14px;font-weight:700;}
+.hdr-sub{font-size:10px;opacity:.75;}
+.hdr-right{display:flex;gap:6px;}
+.btn-hdr{background:rgba(255,255,255,.2);border:none;color:#fff;padding:6px 12px;
+  border-radius:7px;cursor:pointer;font-size:11px;font-weight:600;}
+.btn-hdr:hover{background:rgba(255,255,255,.35);}
+
+/* WRAP */
+.wrap{max-width:1100px;margin:0 auto;padding:16px;}
+
+/* PROFILO STRIP */
+.profilo-strip{background:#fff;border-radius:10px;box-shadow:var(--shadow);
+  padding:10px 16px;margin-bottom:14px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
+.ps-icon{font-size:22px;}
+.ps-info{flex:1;}
+.ps-name{font-size:13px;font-weight:700;color:var(--verde);}
+.ps-detail{font-size:11px;color:var(--grigio3);}
+.ps-edit{background:none;border:1.5px solid var(--grigio2);color:var(--grigio3);
+  border-radius:7px;padding:5px 10px;cursor:pointer;font-size:11px;font-weight:600;}
+.ps-edit:hover{border-color:var(--verde);color:var(--verde);}
+
+/* TABS */
+.tabs{display:flex;background:#fff;border-radius:10px;box-shadow:var(--shadow);
+  overflow:hidden;margin-bottom:16px;}
+.tab{flex:1;padding:12px;border:none;background:#fff;cursor:pointer;font-size:12px;font-weight:600;
+  color:var(--grigio3);border-right:1px solid var(--grigio2);transition:all .2s;}
+.tab:last-child{border-right:none;}
+.tab:hover{background:var(--verde-l);color:var(--verde);}
+.tab.on{background:var(--verde);color:#fff;}
+.tab .ti{display:block;font-size:18px;margin-bottom:2px;}
+
+/* GRID */
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;}
+@media(max-width:720px){.g2{grid-template-columns:1fr;}.g3{grid-template-columns:1fr 1fr;}}
+@media(max-width:460px){.g3{grid-template-columns:1fr;}}
+
+/* CARD */
+.card{background:#fff;border-radius:var(--radius);box-shadow:var(--shadow);padding:16px;}
+.card-t{font-size:13px;font-weight:700;color:var(--verde);margin-bottom:12px;
+  display:flex;align-items:center;gap:6px;}
+.card-t span{font-size:16px;}
+
+/* FORM */
+label{font-size:11px;font-weight:700;color:var(--grigio3);display:block;margin-bottom:3px;}
+input,select,textarea{width:100%;padding:8px 11px;border:1.5px solid var(--grigio2);
+  border-radius:7px;font-size:13px;background:var(--grigio);transition:border .2s;outline:none;}
+input:focus,select:focus,textarea:focus{border-color:var(--verde);background:#fff;}
+.frow{margin-bottom:11px;}
+textarea{min-height:54px;resize:vertical;}
+
+/* GPS */
+.gps-row{display:flex;gap:8px;align-items:flex-end;margin-bottom:11px;}
+.gps-row .frow{flex:1;margin-bottom:0;}
+.btn-gps{background:var(--verde);color:#fff;border:none;border-radius:7px;padding:8px 14px;
+  font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;height:38px;}
+.btn-gps:hover{background:var(--verde-m);}
+.btn-gps:disabled{background:var(--grigio2);color:var(--grigio3);cursor:not-allowed;}
+.coord-box{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:11px;}
+.coord-item{background:var(--verde-l);border-radius:8px;padding:8px 12px;}
+.coord-lbl{font-size:10px;font-weight:700;color:var(--verde);text-transform:uppercase;}
+.coord-val{font-size:13px;font-weight:700;color:var(--testo);margin-top:2px;}
+.gps-status{font-size:11px;color:var(--grigio3);margin-top:4px;min-height:16px;}
+
+/* SEZIONI */
+.sezioni{display:flex;flex-direction:column;gap:8px;}
+.sez-btn{border:none;border-radius:9px;padding:0;cursor:pointer;background:none;width:100%;text-align:left;}
+.sez-hd{display:flex;align-items:center;gap:10px;padding:11px 14px;border-radius:9px;transition:opacity .15s;}
+.sez-btn:hover .sez-hd{opacity:.85;}
+.sez-ico{font-size:19px;}
+.sez-lbl{font-size:13px;font-weight:700;}
+.sez-sub{font-size:11px;opacity:.7;}
+.sez-arr{margin-left:auto;font-size:13px;transition:transform .2s;}
+.sez-btn.open .sez-arr{transform:rotate(90deg);}
+.sez-body{display:none;padding:12px 13px 13px;background:#fff;border-radius:0 0 9px 9px;
+  border:1.5px solid var(--grigio2);border-top:none;margin-top:-3px;}
+.sez-body.vis{display:block;}
+.sl{font-size:11px;font-weight:700;color:var(--grigio3);margin:8px 0 5px;
+  text-transform:uppercase;letter-spacing:.5px;}
+.rg{display:flex;flex-wrap:wrap;gap:6px;}
+.ro{border:1.5px solid var(--grigio2);border-radius:7px;padding:6px 11px;cursor:pointer;
+  font-size:12px;font-weight:600;background:var(--grigio);transition:all .15s;user-select:none;}
+.ro:hover{border-color:var(--verde);background:var(--verde-l);}
+.ro.sel{border-color:var(--verde);background:var(--verde);color:#fff;}
+.qrow{display:flex;align-items:center;gap:8px;margin-top:10px;}
+.ql{font-size:12px;font-weight:600;white-space:nowrap;}
+.qi{width:72px!important;text-align:center;font-weight:700;}
+.qu{font-size:12px;color:var(--grigio3);}
+.btn-add{margin-left:auto;background:var(--verde);color:#fff;border:none;border-radius:7px;
+  padding:7px 15px;font-size:12px;font-weight:700;cursor:pointer;}
+.btn-add:hover{background:var(--verde-m);}
+
+/* LISTA INTERVENTI */
+.ilist{display:flex;flex-direction:column;gap:5px;}
+.irow{display:flex;align-items:center;gap:8px;padding:9px 11px;border-radius:8px;
+  background:var(--verde-l);border-left:4px solid var(--verde);}
+.ico{font-size:15px;}
+.idesc{flex:1;font-size:12px;font-weight:600;}
+.icod{font-size:10px;color:#888;font-weight:400;}
+.iqty{font-size:12px;font-weight:700;color:var(--verde);white-space:nowrap;}
+.idel{background:none;border:none;color:var(--rosso);cursor:pointer;font-size:15px;padding:2px 5px;border-radius:5px;}
+.empty{text-align:center;color:var(--grigio3);font-size:13px;padding:20px 0;}
+
+/* TOTALI */
+.tot-box{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.tb{background:var(--grigio);border-radius:8px;padding:10px 13px;}
+.tb-l{font-size:10px;color:var(--grigio3);font-weight:700;text-transform:uppercase;}
+.tb-v{font-size:17px;font-weight:700;color:var(--verde);margin-top:2px;}
+.tb.hl{background:var(--verde);}
+.tb.hl .tb-l{color:rgba(255,255,255,.75);}
+.tb.hl .tb-v{color:#fff;}
+
+/* BADGE */
+.badge{display:inline-block;background:var(--oro-l);color:var(--oro);border-radius:20px;
+  padding:2px 8px;font-size:11px;font-weight:700;}
+
+/* BOTTONI */
+.btn-p{width:100%;background:var(--verde);color:#fff;border:none;border-radius:9px;
+  padding:12px;font-size:13px;font-weight:700;cursor:pointer;margin-top:10px;
+  display:flex;align-items:center;justify-content:center;gap:7px;}
+.btn-p:hover{background:var(--verde-m);}
+.btn-xls{width:100%;background:#1D6F42;color:#fff;border:none;border-radius:9px;
+  padding:11px;font-size:13px;font-weight:700;cursor:pointer;margin-top:7px;
+  display:flex;align-items:center;justify-content:center;gap:7px;}
+.btn-xls:hover{background:#155733;}
+.btn-s{width:100%;background:var(--blu-l);color:var(--blu);border:none;border-radius:9px;
+  padding:11px;font-size:13px;font-weight:700;cursor:pointer;margin-top:7px;}
+.btn-s:hover{background:#BBDEFB;}
+
+/* MODAL */
+.modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);
+  z-index:200;align-items:center;justify-content:center;padding:14px;}
+.modal-bg.vis{display:flex;}
+.modal{background:#fff;border-radius:12px;max-width:840px;width:100%;
+  max-height:88vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,.25);}
+.modal-hd{background:var(--verde);color:#fff;padding:14px 18px;border-radius:12px 12px 0 0;
+  display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;}
+.modal-body{padding:18px;}
+.info-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-bottom:14px;}
+@media(max-width:600px){.info-grid{grid-template-columns:1fr 1fr;}}
+.info-box{background:var(--grigio);border-radius:7px;padding:7px 11px;}
+.info-k{font-size:9px;font-weight:700;color:var(--grigio3);text-transform:uppercase;}
+.info-v{font-size:12px;font-weight:600;margin-top:2px;}
+.rtable{width:100%;border-collapse:collapse;font-size:11.5px;}
+.rtable th{background:var(--verde);color:#fff;padding:7px 9px;text-align:left;}
+.rtable td{padding:7px 9px;border-bottom:1px solid var(--grigio2);}
+.rtable tr:nth-child(even) td{background:var(--grigio);}
+.rtable .trow td{font-weight:700;background:var(--verde-l);border-top:2px solid var(--verde);}
+.close-btn{background:rgba(255,255,255,.2);border:none;color:#fff;border-radius:6px;
+  padding:5px 12px;cursor:pointer;font-weight:700;font-size:13px;}
+.modal-btns{display:flex;gap:10px;margin-top:14px;}
+.modal-btns button{flex:1;padding:11px;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;}
+.btn-mxls{background:#1D6F42;color:#fff;}
+.btn-mclose{background:var(--grigio2);color:var(--testo);}
+
+/* PIANIFICAZIONE */
+.pian-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px;}
+@media(max-width:720px){.pian-grid{grid-template-columns:1fr 1fr;}}
+.kpi{background:var(--grigio);border-radius:9px;padding:11px 13px;}
+.kpi.gn{background:var(--verde);}
+.kpi.bl{background:var(--blu);}
+.kpi-lbl{font-size:10px;font-weight:700;color:var(--grigio3);text-transform:uppercase;letter-spacing:.4px;}
+.kpi.gn .kpi-lbl,.kpi.bl .kpi-lbl{color:rgba(255,255,255,.75);}
+.kpi-v{font-size:20px;font-weight:700;color:var(--testo);margin-top:3px;}
+.kpi.gn .kpi-v,.kpi.bl .kpi-v{color:#fff;}
+.kpi-s{font-size:10px;color:var(--grigio3);margin-top:2px;}
+.kpi.gn .kpi-s{color:rgba(255,255,255,.65);}
+.param-row{display:flex;gap:11px;flex-wrap:wrap;margin-bottom:14px;}
+.param-box{flex:1;min-width:130px;}
+.gg-box{border:2px solid var(--verde);border-radius:12px;padding:18px;
+  display:flex;align-items:center;gap:18px;flex-wrap:wrap;margin-bottom:14px;background:#fff;}
+.gg-num{font-size:56px;font-weight:700;color:var(--verde);line-height:1;}
+.gg-meta{flex:1;}
+.gg-lbl{font-size:11px;font-weight:700;color:var(--grigio3);text-transform:uppercase;letter-spacing:.4px;}
+.gg-sub{font-size:11px;color:var(--grigio3);margin-top:4px;}
+.formula-box{background:var(--verde-l);border-radius:10px;padding:12px 16px;min-width:150px;text-align:center;}
+.formula-box .fl{font-size:11px;font-weight:700;color:var(--verde);margin-bottom:5px;}
+.formula-box .fr{font-size:11px;color:var(--testo);line-height:1.8;}
+.ptable{width:100%;border-collapse:collapse;font-size:11.5px;}
+.ptable th{background:var(--verde);color:#fff;padding:7px 8px;text-align:left;
+  position:sticky;top:0;white-space:nowrap;}
+.ptable td{padding:7px 8px;border-bottom:1px solid var(--grigio2);vertical-align:middle;}
+.ptable tr:nth-child(even) td{background:var(--grigio);}
+.ptable .trow td{font-weight:700;background:var(--verde-l);border-top:2px solid var(--verde);}
+.ovx{overflow-x:auto;border-radius:8px;box-shadow:var(--shadow);}
+.note-p{font-size:10px;color:var(--grigio3);margin-top:8px;line-height:1.5;}
+</style>
+</head>
+<body>
+
+<!-- SETUP OVERLAY (primo accesso) -->
+<div class="setup-overlay" id="setup-overlay">
+  <div class="setup-box">
+    <div class="setup-logo">🌳</div>
+    <div class="setup-title">SFR — Scheda di Sopralluogo</div>
+    <div class="setup-sub">Catalogo SFR 2026 · Tipologia g) Parchi e Aree Attrezzate<br>Inserisci i tuoi dati — verranno salvati per i prossimi sopralluoghi</div>
+    <div class="frow">
+      <label>Nome e Cognome</label>
+      <input id="setup-nome" placeholder="es. Mario Rossi" autocomplete="name">
+    </div>
+    <div class="frow">
+      <label>Provincia</label>
+      <select id="setup-provincia">
+        <option value="">— Seleziona —</option>
+        <option>AL — Alessandria</option>
+        <option>AT — Asti</option>
+        <option>BI — Biella</option>
+        <option>CN — Cuneo</option>
+        <option>NO — Novara</option>
+        <option>TO — Torino</option>
+        <option>VB — Verbano-Cusio-Ossola</option>
+        <option>VC — Vercelli</option>
+      </select>
+    </div>
+    <button class="setup-btn" onclick="salvaProfilo()">✔ Salva e Accedi</button>
+  </div>
+</div>
+
+<!-- HEADER -->
+<div class="hdr">
+  <div class="hdr-logo">🌳</div>
+  <div class="hdr-info">
+    <div class="hdr-title">SFR — Scheda di Sopralluogo</div>
+    <div class="hdr-sub">Tipologia g) Parchi e Aree Attrezzate · Settore A1824B · Catalogo SFR 2026 (v4)</div>
+  </div>
+  <div class="hdr-right">
+    <button class="btn-hdr" onclick="nuovoSopralluogo()">✚ Nuovo</button>
+    <button class="btn-hdr" onclick="mostraReport()">📋 Report</button>
+    <button class="btn-hdr" onclick="esportaXLS()">📊 XLS</button>
+  </div>
+</div>
+
+<div class="wrap">
+
+<!-- PROFILO STRIP -->
+<div class="profilo-strip" id="profilo-strip">
+  <div class="ps-icon">👤</div>
+  <div class="ps-info">
+    <div class="ps-name" id="ps-name">—</div>
+    <div class="ps-detail" id="ps-detail">—</div>
+  </div>
+  <button class="ps-edit" onclick="modificaProfilo()">✏️ Modifica profilo</button>
+</div>
+
+<!-- TABS -->
+<div class="tabs">
+  <button class="tab on" id="tabBtn-sopralluogo" onclick="mostraTab('sopralluogo')">
+    <span class="ti">📋</span>Sopralluogo
+  </button>
+  <button class="tab" id="tabBtn-pianificazione" onclick="mostraTab('pianificazione')">
+    <span class="ti">👷</span>Pianificazione
+  </button>
+</div>
+
+<!-- TAB 1: SOPRALLUOGO -->
+<div id="tab-sopralluogo">
+<div class="g2" style="align-items:start;">
+
+  <div style="display:flex;flex-direction:column;gap:14px;">
+
+    <!-- Dati cantiere -->
+    <div class="card">
+      <div class="card-t"><span>📋</span>Dati Cantiere</div>
+      <div class="frow">
+        <label>Nome Cantiere / Sito</label>
+        <input id="cantiere" placeholder="es. Parco Comunale Via Roma">
+      </div>
+      <div class="frow">
+        <label>Data Sopralluogo</label>
+        <input type="date" id="data">
+      </div>
+      <div class="g2">
+        <div class="frow">
+          <label>Superficie / Dimensione intervento</label>
+          <input id="dimensione" placeholder="es. 3.500 m²">
+        </div>
+        <div class="frow">
+          <label>Squadra Forestale Regionale (n°)</label>
+          <input id="squadra" placeholder="es. 042" maxlength="3" pattern="\d{1,3}">
+        </div>
+      </div>
+      <div class="frow">
+        <label>N° uomini della squadra</label>
+        <input type="number" id="n-uomini-cantiere" value="2" min="1" max="20" step="1">
+      </div>
+      <div class="frow">
+        <label>Note / Osservazioni</label>
+        <textarea id="note" placeholder="Condizioni del sito, criticità, accessibilità..."></textarea>
+      </div>
+    </div>
+
+    <!-- Localizzazione GPS -->
+    <div class="card">
+      <div class="card-t"><span>📍</span>Localizzazione</div>
+      <div class="gps-row">
+        <div class="frow" style="flex:1">
+          <label>Comune</label>
+          <input id="comune" placeholder="Rilevato da GPS o inserire manualmente">
+        </div>
+        <button class="btn-gps" id="btn-gps" onclick="rilevaPosizione()">📡 GPS</button>
+      </div>
+      <div class="frow">
+        <label>Località / Frazione</label>
+        <input id="localita" placeholder="es. Borgata Tre Rei, Regione Collina...">
+      </div>
+      <div class="coord-box" id="coord-box" style="display:none;">
+        <div class="coord-item">
+          <div class="coord-lbl">Easting UTM 32N (E)</div>
+          <div class="coord-val" id="coord-e">—</div>
+        </div>
+        <div class="coord-item">
+          <div class="coord-lbl">Northing UTM 32N (N)</div>
+          <div class="coord-val" id="coord-n">—</div>
+        </div>
+        <div class="coord-item">
+          <div class="coord-lbl">Latitudine WGS84</div>
+          <div class="coord-val" id="coord-lat">—</div>
+        </div>
+        <div class="coord-item">
+          <div class="coord-lbl">Longitudine WGS84</div>
+          <div class="coord-val" id="coord-lon">—</div>
+        </div>
+      </div>
+      <div class="gps-status" id="gps-status">Tocca "GPS" per rilevare la posizione e il comune automaticamente</div>
+    </div>
+
+    <!-- Tipologie -->
+    <div class="card">
+      <div class="card-t"><span>🔧</span>Tipologie di Intervento</div>
+      <div class="sezioni" id="sezioni"></div>
+    </div>
+  </div>
+
+  <!-- Colonna destra -->
+  <div style="display:flex;flex-direction:column;gap:14px;">
+    <div class="card">
+      <div class="card-t"><span>✅</span>Interventi Selezionati <span class="badge" id="badge-count">0</span></div>
+      <div class="ilist" id="ilist">
+        <div class="empty">Nessun intervento aggiunto.<br>Seleziona una tipologia a sinistra.</div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-t"><span>💰</span>Stima Economica</div>
+      <div class="tot-box">
+        <div class="tb"><div class="tb-l">N° Interventi</div><div class="tb-v" id="tot-count">0</div></div>
+        <div class="tb hl"><div class="tb-l">STIMA TOTALE — Costo A</div><div class="tb-v" id="tot-a">€ 0,00</div></div>
+      </div>
+      <button class="btn-p" onclick="mostraReport()">📄 Genera Report</button>
+      <button class="btn-xls" onclick="esportaXLS()">📊 Esporta XLS completo</button>
+      <button class="btn-s" onclick="mostraTab('pianificazione')">👷 Vai a Pianificazione →</button>
+    </div>
+    <div class="card">
+      <div class="card-t"><span>ℹ️</span>Legenda</div>
+      <p style="font-size:11px;color:var(--grigio3);line-height:1.6;">
+        Prezzi <strong>Costo A SFR</strong> (prezzi netti: esclusi spese generali e utile d'impresa, IVA esclusa).<br>
+        Coordinate: sistema WGS84 UTM Zona 32N (EPSG:32632).<br>
+        Catalogo dei lavori forestali SFR 2026 — Tipologia g).
+      </p>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- TAB 2: PIANIFICAZIONE -->
+<div id="tab-pianificazione" style="display:none;">
+  <div class="card" style="margin-bottom:14px;">
+    <div class="card-t"><span>⚙️</span>Parametri di Calcolo</div>
+    <div class="param-row">
+      <div class="param-box">
+        <label>Costo orario MDO medio (€/h)</label>
+        <input type="number" id="p-cost-h" value="20.54" step="0.01" min="1" oninput="aggiornaPian()">
+      </div>
+      <div class="param-box">
+        <label>Ore lavorative per giornata</label>
+        <input type="number" id="p-ore" value="8" step="0.5" min="1" max="12" oninput="aggiornaPian()">
+      </div>
+      <div class="param-box" style="display:flex;align-items:flex-end;">
+        <div style="background:var(--verde-l);border-radius:8px;padding:8px 12px;width:100%;">
+          <div style="font-size:11px;font-weight:700;color:var(--verde);">N° uomini squadra</div>
+          <div id="p-uomini-disp" style="font-size:16px;font-weight:700;">2</div>
+          <div style="font-size:10px;color:var(--grigio3);">Da dati cantiere</div>
+        </div>
+      </div>
+      <div class="param-box" style="display:flex;align-items:flex-end;">
+        <div style="background:var(--verde-l);border-radius:8px;padding:8px 12px;width:100%;">
+          <div style="font-size:11px;font-weight:700;color:var(--verde);">Costo orario adottato</div>
+          <div id="p-ch-disp" style="font-size:15px;font-weight:700;">€ 20,54/h</div>
+          <div style="font-size:10px;color:var(--grigio3);">Media operaio forestale OTI 4° €21,26 + 2° €19,82</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="pian-grid">
+    <div class="kpi"><div class="kpi-lbl">Valore stima (A)</div><div class="kpi-v" id="p-tot-a">€ 0</div><div class="kpi-s">senza SG+UI</div></div>
+    <div class="kpi"><div class="kpi-lbl">Quota manodopera</div><div class="kpi-v" id="p-mdo">€ 0</div><div class="kpi-s">Incidenza: <strong id="p-inc">—</strong></div></div>
+    <div class="kpi bl"><div class="kpi-lbl">Ore totali MDO</div><div class="kpi-v" id="p-ore-tot">0 h</div><div class="kpi-s">Quota MDO ÷ costo/h</div></div>
+    <div class="kpi gn"><div class="kpi-lbl">Uomini/Giorno totali</div><div class="kpi-v" id="p-gg-tot">0</div><div class="kpi-s">Ore totali ÷ ore/gg</div></div>
+  </div>
+  <div class="gg-box">
+    <div class="gg-num" id="p-gg-squadra">0</div>
+    <div class="gg-meta">
+      <div class="gg-lbl">Giornate lavorative con squadra di <strong id="p-n-disp">2</strong> uomini</div>
+      <div class="gg-sub">Uomini/giorno totali ÷ n° uomini — arrotondato per eccesso</div>
+    </div>
+    <div class="formula-box">
+      <div class="fl">Formula</div>
+      <div class="fr">MDO (€) ÷ costo/h<br>÷ ore/giornata<br>÷ n° uomini</div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-t"><span>📊</span>Dettaglio per Voce</div>
+    <div class="ovx">
+      <table class="ptable">
+        <thead><tr>
+          <th>Voce</th><th>Descrizione</th><th>Qtà</th>
+          <th style="text-align:right">Costo A</th>
+          <th style="text-align:right">% MDO</th>
+          <th style="text-align:right">Quota MDO</th>
+          <th style="text-align:right">Ore MDO</th>
+          <th style="text-align:right">Gg/Uomo</th>
+          <th style="text-align:right">Gg Squadra</th>
+        </tr></thead>
+        <tbody id="p-tbody"></tbody>
+      </table>
+    </div>
+    <p class="note-p">% MDO = incidenza manodopera sul costo A (dai calcoli analitici SFR).
+    Gg Squadra arrotondato per eccesso.</p>
+    <button class="btn-xls" style="margin-top:12px;" onclick="esportaXLS()">📊 Esporta XLS completo</button>
+  </div>
+</div>
+
+</div><!-- wrap -->
+
+<!-- MODAL REPORT -->
+<div class="modal-bg" id="modal-bg">
+  <div class="modal">
+    <div class="modal-hd">
+      <div>
+        <div style="font-weight:700;font-size:14px;">📋 Report Sopralluogo</div>
+        <div style="font-size:10px;opacity:.75;">Tipologia g) Parchi e Aree Attrezzate · Settore A1824B</div>
+      </div>
+      <button class="close-btn" onclick="chiudiModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div id="modal-body"></div>
+      <div class="modal-btns">
+        <button class="btn-mxls" onclick="esportaXLS()">📊 Esporta XLS</button>
+        <button class="btn-mclose" onclick="chiudiModal()">Chiudi</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── UTM 32N CONVERSION (WGS84 → UTM zona 32N) ─────────────────────────────
+function wgs84ToUtm32N(lat, lon) {
+  const a=6378137, f=1/298.257223563;
+  const b=a*(1-f), e2=1-(b*b)/(a*a), e=Math.sqrt(e2);
+  const k0=0.9996, lon0=9*Math.PI/180; // zona 32N meridiano centrale 9°E
+  const latR=lat*Math.PI/180, lonR=lon*Math.PI/180;
+  const N=a/Math.sqrt(1-e2*Math.sin(latR)**2);
+  const T=Math.tan(latR)**2, C=(e2/(1-e2))*Math.cos(latR)**2;
+  const A=(lonR-lon0)*Math.cos(latR);
+  const e4=e2*e2, e6=e4*e2;
+  const M=a*((1-e2/4-3*e4/64-5*e6/256)*latR
+    -(3*e2/8+3*e4/32+45*e6/1024)*Math.sin(2*latR)
+    +(15*e4/256+45*e6/1024)*Math.sin(4*latR)
+    -(35*e6/3072)*Math.sin(6*latR));
+  const x=k0*N*(A+(1-T+C)*A**3/6+(5-18*T+T*T+72*C-58*(e2/(1-e2)))*A**5/120)+500000;
+  const y=k0*(M+N*Math.tan(latR)*(A*A/2+(5-T+9*C+4*C*C)*A**4/24
+    +(61-58*T+T*T+600*C-330*(e2/(1-e2)))*A**6/720));
+  return {E:Math.round(x*100)/100, N:Math.round(y*100)/100};
+}
+
+// ── DATI CATALOGO ─────────────────────────────────────────────────────────
+const CATALOGO=[
+  {id:'potature',label:'Potature Arboree',icon:'✂️',colore:'#1A5C2A',sfondo:'#E6F0E8',
+   steps:[
+     {label:'Altezza pianta',id:'altezza',opzioni:[
+       {v:'lt10',l:'< 10 m'},{v:'11_20',l:'11 – 20 m'},
+       {v:'21_30',l:'21 – 30 m'},{v:'gt30',l:'> 30 m (solo tree climbing)'}]},
+     {label:'Modalità e mezzo',id:'mezzo',opzioni:[
+       {v:'tra',l:'Cestello + trattore con forca',solo:['lt10','11_20','21_30']},
+       {v:'esc',l:'Cestello + miniescavatore con pinza',solo:['lt10','11_20','21_30']},
+       {v:'tc',l:'Tree climbing (senza cestello)',solo:['lt10','11_20','21_30','gt30']}]}],
+   voci:{
+     "lt10_tra":{cod:'EP-POT-CES-01',desc:"Potatura < 10 m — cestello, raccolta con trattore con forca",um:'cad',pA:110.5},
+     "lt10_esc":{cod:'EP-POT-ESC-01',desc:"Potatura < 10 m — cestello, raccolta con miniescavatore con pinza",um:'cad',pA:97.13},
+     "lt10_tc":{cod:'EP-POT-TC-01',desc:"Potatura < 10 m — tree climbing, raccolta con trattore con forca",um:'cad',pA:86.43},
+     "11_20_tra":{cod:'EP-POT-CES-02',desc:"Potatura 11–20 m — cestello, raccolta con trattore con forca",um:'cad',pA:159.69},
+     "11_20_esc":{cod:'EP-POT-ESC-02',desc:"Potatura 11–20 m — cestello, raccolta con miniescavatore con pinza",um:'cad',pA:136.45},
+     "11_20_tc":{cod:'EP-POT-TC-02',desc:"Potatura 11–20 m — tree climbing, raccolta con trattore con forca",um:'cad',pA:124.29},
+     "21_30_tra":{cod:'EP-POT-CES-03',desc:"Potatura 21–30 m — cestello, raccolta con trattore con forca",um:'cad',pA:255.42},
+     "21_30_esc":{cod:'EP-POT-ESC-03',desc:"Potatura 21–30 m — cestello, raccolta con miniescavatore con pinza",um:'cad',pA:229.27},
+     "21_30_tc":{cod:'EP-POT-TC-03',desc:"Potatura 21–30 m — tree climbing, raccolta con trattore con forca",um:'cad',pA:179.53},
+     "gt30_tc":{cod:'EP-POT-TC-04',desc:"Potatura > 30 m — tree climbing",um:'cad',pA:266.6}}},
+  {id:'abbattimenti',label:'Abbattimenti',icon:'🌲',colore:'#B71C1C',sfondo:'#FFEBEE',
+   steps:[
+     {label:'Tipo di abbattimento',id:'contesto',opzioni:[
+       {v:'av',l:'Libero (parchi, strade con poco traffico)'},
+       {v:'au',l:'Controllato con cestello (strade ad alto traffico)'}]},
+     {label:'Altezza',id:'altezza',opzioni:[{v:'le20',l:'≤ 20 m'},{v:'gt20',l:'> 20 m'}]},
+     {label:'Mezzo per la raccolta',id:'mezzo',opzioni:[{v:'tra',l:'Trattore con forca'},{v:'esc',l:'Miniescavatore con pinza'}]}],
+   voci:{
+     "av_le20_tra":{cod:'EP-ABB-A-LE20-TRA',desc:"Abbattimento libero ≤ 20 m — trattore con forca (ceppaia esclusa)",um:'cad',pA:64.65},
+     "av_le20_esc":{cod:'EP-ABB-A-LE20-ESC',desc:"Abbattimento libero ≤ 20 m — miniescavatore con pinza (ceppaia esclusa)",um:'cad',pA:52.33},
+     "av_gt20_tra":{cod:'EP-ABB-A-GT20-TRA',desc:"Abbattimento libero > 20 m — trattore con forca (ceppaia esclusa)",um:'cad',pA:168.42},
+     "av_gt20_esc":{cod:'EP-ABB-A-GT20-ESC',desc:"Abbattimento libero > 20 m — miniescavatore con pinza (ceppaia esclusa)",um:'cad',pA:143.23},
+     "au_le20_tra":{cod:'EP-ABB-B-LE20-TRA',desc:"Abbattimento controllato con cestello ≤ 20 m — trattore con forca (ceppaia esclusa)",um:'cad',pA:214.24},
+     "au_le20_esc":{cod:'EP-ABB-B-LE20-ESC',desc:"Abbattimento controllato con cestello ≤ 20 m — miniescavatore (ceppaia esclusa)",um:'cad',pA:193.61},
+     "au_gt20_tra":{cod:'EP-ABB-B-GT20-TRA',desc:"Abbattimento controllato con cestello > 20 m — trattore con forca (ceppaia esclusa)",um:'cad',pA:530.36},
+     "au_gt20_esc":{cod:'EP-ABB-B-GT20-ESC',desc:"Abbattimento controllato con cestello > 20 m — miniescavatore (ceppaia esclusa)",um:'cad',pA:496.06}}},
+  {id:'ceppaia',label:'Rimozione Ceppaia',icon:'🪵',colore:'#4E342E',sfondo:'#EFEBE9',
+   steps:[{label:'Diametro ceppaia',id:'diam',opzioni:[
+     {v:'p',l:'Fino a 25 cm Ø — a strappo con miniescavatore'},{v:'m',l:'25 – 60 cm Ø — tritaceppi a noleggio'},
+     {v:'g',l:'60 – 90 cm Ø — tritaceppi a noleggio'},{v:'x',l:'Oltre 90 cm Ø — tritaceppi a noleggio'}]}],
+   voci:{
+     "p":{cod:'EP-CEP-001',desc:"Rimozione ceppaia a strappo con miniescavatore — Ø fino a 25 cm",um:'cad',pA:4.04},
+     "m":{cod:'EP-CEP-002',desc:"Rimozione ceppaia con tritaceppi a noleggio — Ø 25–60 cm",um:'cad',pA:12.34},
+     "g":{cod:'EP-CEP-003',desc:"Rimozione ceppaia con tritaceppi a noleggio — Ø 60–90 cm",um:'cad',pA:39.2},
+     "x":{cod:'EP-CEP-004',desc:"Rimozione ceppaia con tritaceppi a noleggio — Ø oltre 90 cm",um:'cad',pA:78.39}}},
+  {id:'cippatura',label:'Cippatura e Trasporto Cippato',icon:'🔄',colore:'#E65100',sfondo:'#FBE9E7',
+   steps:[{label:'Tipo operazione',id:'op',opzioni:[
+     {v:'cip1',l:'Cippatura in loco — cippatrice portata, Ø fino a 10 cm'},
+     {v:'cip2',l:'Cippatura in loco — cippatrice portata, Ø fino a 20 cm'},
+     {v:'cip3',l:'Cippatura in loco — cippatrice portata, Ø fino a 30 cm'},
+     {v:'cip4',l:'Cippatura in loco — cippatrice autonoma FORST, Ø fino a 20 cm'},
+     {v:'trpa',l:'Trasporto cippato con trattore e rimorchio — 0–5 km'},
+     {v:'trpb',l:'Trasporto cippato con trattore e rimorchio — 5–10 km'},
+     {v:'trpc',l:'Trasporto cippato con trattore e rimorchio — 10–20 km'}]}],
+   voci:{
+     "cip1":{cod:'EP-CIP-001',desc:"Cippatura in loco — cippatrice portata su trattore, Ø fino a 10 cm",um:'m³',pA:11.34},
+     "cip2":{cod:'EP-CIP-002',desc:"Cippatura in loco — cippatrice portata su trattore, Ø fino a 20 cm",um:'m³',pA:12.93},
+     "cip3":{cod:'EP-CIP-003',desc:"Cippatura in loco — cippatrice portata su trattore, Ø fino a 30 cm",um:'m³',pA:15.66},
+     "cip4":{cod:'EP-CIP-004',desc:"Cippatura in loco — cippatrice autonoma cingolata FORST TR6D, Ø fino a 20 cm",um:'m³',pA:6.58},
+     "trpa":{cod:'EP-TRP-001-A',desc:"Trasporto cippato con trattore e rimorchio (cassone 15 m³) — 0–5 km",um:'m³',pA:4.24},
+     "trpb":{cod:'EP-TRP-001-B',desc:"Trasporto cippato con trattore e rimorchio (cassone 15 m³) — 5–10 km",um:'m³',pA:7.07},
+     "trpc":{cod:'EP-TRP-001-C',desc:"Trasporto cippato con trattore e rimorchio (cassone 15 m³) — 10–20 km",um:'m³',pA:11.31}}},
+  {id:'siepi',label:'Potatura Siepi',icon:'🌳',colore:'#33691E',sfondo:'#F1F8E9',
+   steps:[
+     {label:'Altezza della siepe',id:'alt',opzioni:[
+       {v:'h2',l:'Inferiore a 2 m (perimetro fino a 200 cm)'},
+       {v:'h3',l:'Fino a 3 m (perimetro 200–600 cm)'},
+       {v:'gt3',l:'Oltre 3 m (perimetro oltre 600 cm)'}]},
+     {label:'Lavoro in quota',id:'quota',soloSe:{step:'alt',val:'gt3'},opzioni:[
+       {v:'ces',l:'Con cestello'},{v:'trb',l:'Con trabattello (solo terreno piano e stabile)'}]}],
+   voci:{
+     "h2":{cod:'EP-SIE-001',desc:"Potatura siepi sui tre lati — altezza < 2 m — raccolta con Cingo Merlo",um:'m',pA:1.62},
+     "h3":{cod:'EP-SIE-002',desc:"Potatura siepi sui tre lati — altezza fino a 3 m — da terra, raccolta con Cingo Merlo",um:'m',pA:2.49},
+     "gt3_ces":{cod:'EP-SIE-003-CES',desc:"Potatura siepi sui tre lati — altezza oltre 3 m — con cestello",um:'m',pA:11.26},
+     "gt3_trb":{cod:'EP-SIE-003-TRB',desc:"Potatura siepi sui tre lati — altezza oltre 3 m — con trabattello",um:'m',pA:9.87}}},
+  {id:'sfalci',label:'Sfalcio Aree Verdi',icon:'🌿',colore:'#2E7D32',sfondo:'#E8F5E9',
+   steps:[{label:'Tipologia area',id:'tipo',opzioni:[
+     {v:'s1',l:'Giardini comunali e aree piccole — tosaerba con raccoglitore'},
+     {v:'s2',l:'Parchi e aree estese — trattore con trincia'},
+     {v:'s3',l:'Aree attrezzate, fondo delicato — rider'},
+     {v:'s4',l:'Scarpate senza ostacoli — Cingo Merlo con trincia'},
+     {v:'s5',l:'Scarpate con pendenza o ostacoli — decespugliatore'}]}],
+   voci:{
+     "s1":{cod:'EP-SFA-001',desc:"Sfalcio giardini e aree piccole — tosaerba con raccoglitore + rifilatura",um:'m²',pA:0.0834},
+     "s2":{cod:'EP-SFA-002',desc:"Sfalcio parchi e aree estese — trattore con trincia + rifilatura",um:'m²',pA:0.0324},
+     "s3":{cod:'EP-SFA-003',desc:"Sfalcio aree attrezzate — rider + rifilatura",um:'m²',pA:0.0292},
+     "s4":{cod:'EP-SFA-004',desc:"Sfalcio scarpate senza ostacoli — Cingo Merlo con trincia + rifilatura",um:'m²',pA:0.0313},
+     "s5":{cod:'EP-SFA-005',desc:"Sfalcio scarpate con pendenza o ostacoli — decespugliatore + motosega",um:'m²',pA:0.1478}}},
+  {id:'decespugliamento',label:'Decespugliamento',icon:'🌾',colore:'#6A1B9A',sfondo:'#F3E5F5',
+   steps:[
+     {label:'Pendenza',id:'pend',opzioni:[
+       {v:'lt50',l:'Pendenza < 50% — Cingo Merlo con trincia'},{v:'gt50',l:'Pendenza > 50% — solo decespugliatore'}]},
+     {label:'Densità infestanti',id:'inv',opzioni:[
+       {v:'alta',l:'Alta (h > 1 m, copertura > 90%)'},{v:'mod',l:'Media (h < 1 m, copertura < 90%)'}]}],
+   voci:{
+     "lt50_alta":{cod:'EP-DEC-001',desc:"Decespugliamento pendenza < 50%, alta densità — materiale accatastato in loco",um:'m²',pA:0.68},
+     "lt50_mod":{cod:'EP-DEC-002',desc:"Decespugliamento pendenza < 50%, media densità — materiale accatastato in loco",um:'m²',pA:0.5},
+     "gt50_alta":{cod:'EP-DEC-003',desc:"Decespugliamento pendenza > 50%, alta densità — materiale accatastato in loco",um:'m²',pA:0.73},
+     "gt50_mod":{cod:'EP-DEC-004',desc:"Decespugliamento pendenza > 50%, media densità — materiale accatastato in loco",um:'m²',pA:0.62}}},
+  {id:'impianto',label:'Impianto Arboreo e Arbustivo',icon:'🌱',colore:'#1565C0',sfondo:'#E3F2FD',
+   steps:[
+     {label:'Contesto',id:'ctx',opzioni:[
+       {v:'for',l:'Ambito forestale — piantine (buca a mano)'},
+       {v:'par',l:'Parchi e giardini — piante medie (miniescavatore)'}]},
+     {label:'Formato pianta',id:'formato',opzioni:[
+       {v:'f1',l:'Semenzale radice nuda h 20-30 cm',solo:['for']},
+       {v:'f2',l:'Contenitore alveolare h 20-30 cm',solo:['for']},
+       {v:'f3',l:'Multicontenitore 650 cc h 30-50 cm',solo:['for']},
+       {v:'g1',l:'Arbusto vaso 3,4 L h 60-80 cm',solo:['par']},
+       {v:'g2',l:'Alberetto vaso 6,5 L h 70-100 cm',solo:['par']},
+       {v:'g3',l:'Alberetto vaso 8,5 L h 100-150 cm',solo:['par']},
+       {v:'g4',l:'Albero zollato h 100-160 cm',solo:['par']},
+       {v:'g5',l:'Albero zollato h 160-250 cm',solo:['par']}]},
+     {label:'Pacciamatura',id:'pacc',soloSe:{step:'ctx',val:'for'},opzioni:[
+       {v:'disco',l:'Disco ligno-cellulosico 40×40'},
+       {v:'cip',l:'Cippato prodotto in loco (al posto del disco)'}]}],
+   voci:{
+     "for_f1_disco":{cod:'EP-IMP-F-01',desc:"Impianto forestale — semenzale a radice nuda h 20-30 cm — pacciamatura con disco",um:'cad',pA:4.21},
+     "for_f1_cip":{cod:'EP-IMP-F-01 + EP-IMP-PAC-CIP',desc:"Impianto forestale — semenzale a radice nuda h 20-30 cm — pacciamatura con cippato al posto del disco",um:'cad',pA:3.67},
+     "for_f2_disco":{cod:'EP-IMP-F-02',desc:"Impianto forestale — piantina in alveolo h 20-30 cm — pacciamatura con disco",um:'cad',pA:4.91},
+     "for_f2_cip":{cod:'EP-IMP-F-02 + EP-IMP-PAC-CIP',desc:"Impianto forestale — piantina in alveolo h 20-30 cm — pacciamatura con cippato al posto del disco",um:'cad',pA:4.37},
+     "for_f3_disco":{cod:'EP-IMP-F-03',desc:"Impianto forestale — piantina in multicontenitore 650 cc h 30-50 cm — pacciamatura con disco",um:'cad',pA:5.21},
+     "for_f3_cip":{cod:'EP-IMP-F-03 + EP-IMP-PAC-CIP',desc:"Impianto forestale — piantina in multicontenitore 650 cc h 30-50 cm — pacciamatura con cippato al posto del disco",um:'cad',pA:4.67},
+     "par_g1":{cod:'EP-IMP-G-01',desc:"Impianto parchi e giardini — arbusto in vaso 3,4 L h 60-80 cm, con canna",um:'cad',pA:8.96},
+     "par_g2":{cod:'EP-IMP-G-02',desc:"Impianto parchi e giardini — arbusto/alberetto in vaso 6,5 L h 70-100 cm, con palo",um:'cad',pA:21.3},
+     "par_g3":{cod:'EP-IMP-G-03',desc:"Impianto parchi e giardini — alberetto in vaso 8,5 L h 100-150 cm, con palo",um:'cad',pA:24.3},
+     "par_g4":{cod:'EP-IMP-G-04',desc:"Impianto parchi e giardini — albero zollato h 100-160 cm, un palo",um:'cad',pA:44.47},
+     "par_g5":{cod:'EP-IMP-G-05',desc:"Impianto parchi e giardini — albero zollato h 160-250 cm, tre pali",um:'cad',pA:80.96}}},
+  {id:'trasporto',label:'Trasporto Piante e Materiale Vario',icon:'🚐',colore:'#37474F',sfondo:'#ECEFF1',
+   steps:[{label:'Distanza (escluso cippato)',id:'dist',opzioni:[
+     {v:'a',l:'Fino a 30 km'},{v:'b',l:'30 – 60 km'},{v:'c',l:'60 – 100 km'}]}],
+   voci:{
+     "a":{cod:'EP-TRS-V-001-A',desc:"Trasporto piante e materiale vario con furgone SFR — fino a 30 km",um:'viaggio',pA:106.18},
+     "b":{cod:'EP-TRS-V-001-B',desc:"Trasporto piante e materiale vario con furgone SFR — 30–60 km",um:'viaggio',pA:176.97},
+     "c":{cod:'EP-TRS-V-001-C',desc:"Trasporto piante e materiale vario con furgone SFR — 60–100 km",um:'viaggio',pA:259.55}}},
+  {id:'sentieri',label:'Sentieri e Pavimentazioni',icon:'🥾',colore:'#4A148C',sfondo:'#EDE7F6',
+   steps:[{label:'Tipologia',id:'tipo',opzioni:[
+     {v:'sen1',l:'Sentiero pedonale in terra battuta, a mano (1 m, cassonetto 10 cm)'},
+     {v:'sen2',l:'Tracciato fino a 2 m con miniescavatore e Cingo'},
+     {v:'pav', l:'Pavimentazione in stabilizzato 20 cm — solo lavorazione (in alternativa al sentiero)'}]}],
+   voci:{
+     "sen1":{cod:'EP-SEN-001',desc:"Sentiero pedonale in terra battuta in parchi e giardini, a mano — 1 m, cassonetto 10 cm",um:'m',pA:5.7},
+     "sen2":{cod:'EP-SEN-002',desc:"Apertura tracciato fino a 2 m con miniescavatore e Cingo Merlo",um:'m',pA:11.32},
+     "pav":{cod:'EP-PAV-001',desc:"Pavimentazione in stabilizzato 20 cm — solo lavorazione, materiali a carico del committente",um:'m²',pA:8.87}}},
+  {id:'cordolature',label:'Cordolature e Gradonate',icon:'🪜',colore:'#5D4037',sfondo:'#EFEBE9',
+   steps:[{label:'Tipologia',id:'tipo',opzioni:[
+     {v:'cor',l:'Cordolatura con tondone Ø 25 e piloti Ø 12'},
+     {v:'gra',l:'Gradonata con tondoni Ø 22,5 e piloti Ø 12 (al m di sviluppo)'}]}],
+   voci:{
+     "cor":{cod:'EP-COR-001',desc:"Cordolatura con tondone Ø 25 cm e piloti in acciaio Ø 12",um:'m',pA:18.01},
+     "gra":{cod:'EP-GRA-001',desc:"Gradonata con tondoni Ø 22,5 e piloti Ø 12 — pedata 65 cm, larghezza 95 cm",um:'m',pA:35.04}}},
+  {id:'staccionata',label:'Staccionata',icon:'🪧',colore:'#795548',sfondo:'#EFEBE9',
+   steps:[{label:'Tipologia',id:'tipo',opzioni:[
+     {v:'sta',l:'Staccionata rustica in castagno con olio di lino'}]}],
+   voci:{
+     "sta":{cod:'EP-STA-001',desc:"Staccionata rustica in paleria di castagno, olio di lino — interasse 2 m",um:'m',pA:21.32}}}
+];
+
+const MDO_INC={"EP-POT-CES-01": 0.33, "EP-POT-CES-02": 0.29, "EP-POT-CES-03": 0.29, "EP-POT-ESC-01": 0.38, "EP-POT-ESC-02": 0.34, "EP-POT-ESC-03": 0.33, "EP-POT-TC-01": 0.51, "EP-POT-TC-02": 0.45, "EP-POT-TC-03": 0.5, "EP-POT-TC-04": 0.57, "EP-ABB-A-LE20-TRA": 0.42, "EP-ABB-A-GT20-TRA": 0.5, "EP-ABB-B-LE20-TRA": 0.34, "EP-ABB-B-GT20-TRA": 0.31, "EP-ABB-A-LE20-ESC": 0.52, "EP-ABB-A-GT20-ESC": 0.59, "EP-ABB-B-LE20-ESC": 0.38, "EP-ABB-B-GT20-ESC": 0.33, "EP-CEP-001": 0.39, "EP-CEP-002": 0.47, "EP-CEP-003": 0.39, "EP-CEP-004": 0.39, "EP-CIP-001": 0.36, "EP-CIP-002": 0.32, "EP-CIP-003": 0.26, "EP-CIP-004": 0.62, "EP-TRP-001-A": 0.25, "EP-TRP-001-B": 0.25, "EP-TRP-001-C": 0.25, "EP-SIE-001": 0.76, "EP-SIE-002": 0.74, "EP-SIE-003-CES": 0.33, "EP-SIE-003-TRB": 0.53, "EP-SFA-001": 0.88, "EP-SFA-002": 0.57, "EP-SFA-003": 0.88, "EP-SFA-004": 0.71, "EP-SFA-005": 0.78, "EP-IMP-F-01": 0.49, "EP-IMP-F-02": 0.42, "EP-IMP-F-03": 0.39, "EP-IMP-G-01": 0.33, "EP-IMP-G-02": 0.32, "EP-IMP-G-03": 0.28, "EP-IMP-G-04": 0.34, "EP-IMP-G-05": 0.21, "EP-IMP-PAC-CIP": 0.0, "EP-TRS-V-001-A": 0.58, "EP-TRS-V-001-B": 0.58, "EP-TRS-V-001-C": 0.58, "EP-SEN-001": 0.94, "EP-SEN-002": 0.54, "EP-PAV-001": 0.7, "EP-COR-001": 0.42, "EP-GRA-001": 0.5, "EP-STA-001": 0.34, "EP-DEC-001": 0.72, "EP-DEC-002": 0.66, "EP-DEC-003": 0.73, "EP-DEC-004": 0.8, "EP-IMP-F-01 + EP-IMP-PAC-CIP": 0.49, "EP-IMP-F-02 + EP-IMP-PAC-CIP": 0.42, "EP-IMP-F-03 + EP-IMP-PAC-CIP": 0.39};
+
+// ── STATO ─────────────────────────────────────────────────────────────────
+let stato={}, interventi=[];
+let coordE='', coordN='', coordLat='', coordLon='';
+const fmt=(n,d=2)=>n.toLocaleString('it-IT',{minimumFractionDigits:d,maximumFractionDigits:d});
+const r2=n=>Math.round((n+Number.EPSILON)*100)/100;
+
+// ── PROFILO ───────────────────────────────────────────────────────────────
+function salvaProfilo(){
+  const nome=document.getElementById('setup-nome').value.trim();
+  const prov=document.getElementById('setup-provincia').value;
+  if(!nome||!prov){alert('Compila tutti i campi.');return;}
+  localStorage.setItem('sfr_profilo',JSON.stringify({nome,prov}));
+  document.getElementById('setup-overlay').style.display='none';
+  aggiornaStripProfilo({nome,prov});
+}
+
+function aggiornaStripProfilo(p){
+  document.getElementById('ps-name').textContent=p.nome;
+  document.getElementById('ps-detail').textContent=`Prov. ${p.prov.split(' — ')[0]}`;
+}
+
+function modificaProfilo(){
+  const p=JSON.parse(localStorage.getItem('sfr_profilo')||'{}');
+  document.getElementById('setup-nome').value=p.nome||'';
+  document.getElementById('setup-provincia').value=p.prov||'';
+  
+  document.getElementById('setup-overlay').style.display='flex';
+}
+
+function caricaProfilo(){
+  const p=JSON.parse(localStorage.getItem('sfr_profilo')||'null');
+  if(p){document.getElementById('setup-overlay').style.display='none';aggiornaStripProfilo(p);}
+}
+
+function getProfilo(){return JSON.parse(localStorage.getItem('sfr_profilo')||'{}');}
+
+// ── DATA AUTOMATICA ───────────────────────────────────────────────────────
+function setDataOggi(){
+  const oggi=new Date();
+  const y=oggi.getFullYear(), m=String(oggi.getMonth()+1).padStart(2,'0'), d=String(oggi.getDate()).padStart(2,'0');
+  document.getElementById('data').value=`${y}-${m}-${d}`;
+}
+
+// ── GPS + REVERSE GEOCODING ───────────────────────────────────────────────
+function rilevaPosizione(){
+  const btn=document.getElementById('btn-gps');
+  const status=document.getElementById('gps-status');
+  btn.disabled=true; btn.textContent='⏳';
+  status.textContent='Rilevamento posizione in corso...';
+  if(!navigator.geolocation){
+    status.textContent='⚠️ GPS non disponibile su questo dispositivo.';
+    btn.disabled=false; btn.textContent='📡 GPS'; return;
+  }
+  navigator.geolocation.getCurrentPosition(async pos=>{
+    const lat=pos.coords.latitude, lon=pos.coords.longitude;
+    coordLat=lat.toFixed(6); coordLon=lon.toFixed(6);
+    const utm=wgs84ToUtm32N(lat,lon);
+    coordE=utm.E.toFixed(2); coordN=utm.N.toFixed(2);
+    document.getElementById('coord-e').textContent=coordE+' m';
+    document.getElementById('coord-n').textContent=coordN+' m';
+    document.getElementById('coord-lat').textContent=coordLat+'°';
+    document.getElementById('coord-lon').textContent=coordLon+'°';
+    document.getElementById('coord-box').style.display='grid';
+    status.textContent='✅ Posizione rilevata — ricerca comune in corso...';
+    // Reverse geocoding con Nominatim (OpenStreetMap)
+    try{
+      const url=`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&accept-language=it`;
+      const res=await fetch(url,{headers:{'Accept-Language':'it'}});
+      const data=await res.json();
+      const addr=data.address||{};
+      const comune=addr.city||addr.town||addr.village||addr.municipality||addr.county||'';
+      const localita=addr.suburb||addr.quarter||addr.neighbourhood||addr.hamlet||addr.road||'';
+      if(comune)document.getElementById('comune').value=comune;
+      if(localita)document.getElementById('localita').value=localita;
+      status.textContent=`✅ Posizione rilevata · ${comune}${localita?' — '+localita:''} · UTM 32N: E ${coordE} N ${coordN}`;
+    }catch(e){
+      status.textContent=`✅ Posizione rilevata (comune non trovato) · UTM 32N: E ${coordE} N ${coordN}`;
+    }
+    btn.disabled=false; btn.textContent='📡 GPS';
+  }, err=>{
+    const msg={1:'Permesso GPS negato.',2:'Posizione non disponibile.',3:'Timeout GPS.'};
+    status.textContent='⚠️ '+(msg[err.code]||'Errore GPS.');
+    btn.disabled=false; btn.textContent='📡 GPS';
+  },{enableHighAccuracy:true,timeout:15000,maximumAge:0});
+}
+
+// ── SEZIONI ───────────────────────────────────────────────────────────────
+function renderSezioni(){
+  const cont=document.getElementById('sezioni'); cont.innerHTML='';
+  CATALOGO.forEach(sez=>{
+    stato[sez.id]={};
+    const w=document.createElement('div');
+    w.innerHTML=`
+      <button class="sez-btn" id="btn-${sez.id}" onclick="toggleSez('${sez.id}')">
+        <div class="sez-hd" style="background:${sez.sfondo};border:1.5px solid ${sez.colore}33;">
+          <span class="sez-ico">${sez.icon}</span>
+          <div>
+            <div class="sez-lbl" style="color:${sez.colore}">${sez.label}</div>
+            <div class="sez-sub" style="color:${sez.colore}">${sez.steps.length} scelta/e guidata/e</div>
+          </div>
+          <span class="sez-arr" style="color:${sez.colore}">▶</span>
+        </div>
+      </button>
+      <div class="sez-body" id="body-${sez.id}">
+        <div id="steps-${sez.id}"></div>
+        <div class="qrow" id="qty-${sez.id}" style="display:none">
+          <span class="ql">Quantità:</span>
+          <input type="number" class="qi" id="qi-${sez.id}" value="1" min="0.01" step="any">
+          <span class="qu" id="qu-${sez.id}"></span>
+          <button class="btn-add" onclick="aggiungi('${sez.id}')">+ Aggiungi</button>
+        </div>
+      </div>`;
+    cont.appendChild(w);
+  });
+}
+
+function toggleSez(id){
+  const body=document.getElementById(`body-${id}`);
+  const btn=document.getElementById(`btn-${id}`);
+  const isOpen=body.classList.contains('vis');
+  document.querySelectorAll('.sez-body').forEach(b=>b.classList.remove('vis'));
+  document.querySelectorAll('.sez-btn').forEach(b=>b.classList.remove('open'));
+  if(!isOpen){body.classList.add('vis');btn.classList.add('open');renderSteps(id);}
+}
+
+function stepsAttivi(sez,sid){
+  return sez.steps.filter(st=>!st.soloSe||stato[sid][st.soloSe.step]===st.soloSe.val);
+}
+function chiaveVoce(sez,sid){
+  const att=stepsAttivi(sez,sid);
+  if(!att.every(st=>stato[sid][st.id]))return null;
+  return att.map(st=>stato[sid][st.id]).join('_');
+}
+function renderSteps(sid){
+  const sez=CATALOGO.find(s=>s.id===sid);
+  const cont=document.getElementById(`steps-${sid}`); cont.innerHTML='';
+  const att=stepsAttivi(sez,sid);
+  att.forEach((step,si)=>{
+    if(si>0&&!stato[sid][att[si-1].id])return;
+    const prevVal=si>0?stato[sid][att[si-1].id]:null;
+    const opz=step.opzioni.filter(o=>!o.solo||o.solo.includes(prevVal));
+    const div=document.createElement('div');
+    div.innerHTML=`<div class="sl">${step.label}</div>
+      <div class="rg">${opz.map(o=>`<div class="ro ${stato[sid][step.id]===o.v?'sel':''}"
+        onclick="selOpt('${sid}','${step.id}','${o.v}')">${o.l}</div>`).join('')}</div>`;
+    cont.appendChild(div);
+  });
+  const chiave=chiaveVoce(sez,sid);
+  const voce=chiave?sez.voci[chiave]:null;
+  const qr=document.getElementById(`qty-${sid}`);
+  if(voce){
+    qr.style.display='flex';
+    document.getElementById(`qu-${sid}`).textContent=voce.um+' · € '+fmt(voce.pA,voce.pA<1?4:2)+'/'+voce.um;
+  }else qr.style.display='none';
+}
+
+function selOpt(sid,stepId,val){
+  const sez=CATALOGO.find(s=>s.id===sid);
+  const idx=sez.steps.findIndex(s=>s.id===stepId);
+  sez.steps.slice(idx+1).forEach(s=>delete stato[sid][s.id]);
+  stato[sid][stepId]=val; renderSteps(sid);
+}
+
+function aggiungi(sid){
+  const sez=CATALOGO.find(s=>s.id===sid);
+  const chiave=chiaveVoce(sez,sid);
+  const voce=chiave?sez.voci[chiave]:null; if(!voce)return;
+  const qty=parseFloat(document.getElementById(`qi-${sid}`).value)||1;
+  interventi.push({icon:sez.icon,cod:voce.cod,desc:voce.desc,um:voce.um,qty,pA:voce.pA,totA:r2(voce.pA*qty)});
+  renderInterventi(); stato[sid]={}; renderSteps(sid);
+  document.getElementById(`qty-${sid}`).style.display='none';
+}
+
+// ── LISTA E CONTI ─────────────────────────────────────────────────────────
+function renderInterventi(){
+  const list=document.getElementById('ilist'); list.innerHTML='';
+  if(interventi.length===0){
+    list.innerHTML='<div class="empty">Nessun intervento aggiunto.<br>Seleziona una tipologia a sinistra.</div>';
+    aggiornaConti(); document.getElementById('badge-count').textContent=0; return;
+  }
+  interventi.forEach((int,i)=>{
+    const div=document.createElement('div'); div.className='irow';
+    div.innerHTML=`<span class="ico">${int.icon}</span>
+      <div class="idesc"><div class="icod">${int.cod}</div>${int.desc}</div>
+      <div class="iqty">${fmt(int.qty,int.qty%1?2:0)} ${int.um} × €${fmt(int.pA,int.pA<1?4:2)} = €${fmt(int.totA)}</div>
+      <button class="idel" onclick="rimuovi(${i})">✕</button>`;
+    list.appendChild(div);
+  });
+  aggiornaConti(); document.getElementById('badge-count').textContent=interventi.length;
+}
+
+function rimuovi(i){interventi.splice(i,1);renderInterventi();}
+
+function aggiornaConti(){
+  const totA=r2(interventi.reduce((s,i)=>s+i.totA,0));
+  document.getElementById('tot-count').textContent=interventi.length;
+  document.getElementById('tot-a').textContent='€ '+fmt(totA);
+}
+
+// ── REPORT ────────────────────────────────────────────────────────────────
+function datiCantiere(){
+  const p=getProfilo();
+  return {
+    cantiere:document.getElementById('cantiere').value||'—',
+    data:document.getElementById('data').value||'—',
+    tecnico:p.nome||'—',
+    squadra:'n° '+(document.getElementById('squadra').value.trim().padStart(3,'0')||'—'),
+    nUomini:parseInt(document.getElementById('n-uomini-cantiere').value)||2,
+    provincia:p.prov||'—',
+    comune:document.getElementById('comune').value||'—',
+    localita:document.getElementById('localita').value||'—',
+    dimensione:document.getElementById('dimensione').value||'—',
+    coordE:coordE?coordE+' m':'—',
+    coordN:coordN?coordN+' m':'—',
+    coordLat:coordLat?coordLat+'°':'—',
+    coordLon:coordLon?coordLon+'°':'—',
+    note:document.getElementById('note').value||'—',
+  };
+}
+
+function mostraReport(){
+  const d=datiCantiere();
+  const totA=r2(interventi.reduce((s,i)=>s+i.totA,0));
+    document.getElementById('modal-body').innerHTML=`
+    <div class="info-grid">
+      <div class="info-box"><div class="info-k">Cantiere</div><div class="info-v">${d.cantiere}</div></div>
+      <div class="info-box"><div class="info-k">Data</div><div class="info-v">${d.data}</div></div>
+      <div class="info-box"><div class="info-k">Tecnico</div><div class="info-v">${d.tecnico}</div></div>
+      <div class="info-box"><div class="info-k">Squadra</div><div class="info-v">${d.squadra}</div></div>
+      <div class="info-box"><div class="info-k">Provincia</div><div class="info-v">${d.provincia}</div></div>
+      <div class="info-box"><div class="info-k">Comune</div><div class="info-v">${d.comune}</div></div>
+      <div class="info-box"><div class="info-k">Località</div><div class="info-v">${d.localita}</div></div>
+      <div class="info-box"><div class="info-k">Dimensione</div><div class="info-v">${d.dimensione}</div></div>
+      <div class="info-box"><div class="info-k">Coord. E UTM32N</div><div class="info-v">${d.coordE}</div></div>
+      <div class="info-box"><div class="info-k">Coord. N UTM32N</div><div class="info-v">${d.coordN}</div></div>
+      <div class="info-box"><div class="info-k">Latitudine WGS84</div><div class="info-v">${d.coordLat}</div></div>
+      <div class="info-box"><div class="info-k">Longitudine WGS84</div><div class="info-v">${d.coordLon}</div></div>
+    </div>
+    <table class="rtable">
+      <thead><tr><th>#</th><th>Codice</th><th>Descrizione</th><th>U.M.</th>
+        <th style="text-align:right">Qtà</th><th style="text-align:right">€/U.M.(A)</th>
+        <th style="text-align:right">Totale A</th></tr></thead>
+      <tbody>
+        ${interventi.map((v,i)=>`<tr><td>${i+1}</td><td><strong>${v.cod}</strong></td><td>${v.desc}</td>
+          <td>${v.um}</td><td style="text-align:right">${fmt(v.qty,0)}</td>
+          <td style="text-align:right">€ ${fmt(v.pA,v.pA<1?4:2)}</td>
+          <td style="text-align:right">€ ${fmt(v.totA)}</td></tr>`).join('')}
+        <tr class="trow"><td colspan="6"><strong>TOTALE</strong></td>
+          <td style="text-align:right"><strong>€ ${fmt(totA)}</strong></td></tr>
+      </tbody>
+    </table>
+    <p style="font-size:10px;color:#999;margin-top:10px;text-align:center;">
+      Catalogo SFR 2026 · Settore A1824B · Tipologia g) Parchi e Aree Attrezzate<br>
+      Coordinate: WGS84 / UTM Zona 32N (EPSG:32632) · Prezzi in Costo A (esclusi spese generali e utile d'impresa, IVA esclusa)
+    </p>`;
+  document.getElementById('modal-bg').classList.add('vis');
+}
+
+function chiudiModal(){document.getElementById('modal-bg').classList.remove('vis');}
+document.getElementById('modal-bg').addEventListener('click',function(e){if(e.target===this)chiudiModal();});
+
+// ── EXPORT XLS ────────────────────────────────────────────────────────────
+function esportaXLS(){
+  const d=datiCantiere();
+  const totA=r2(interventi.reduce((s,i)=>s+i.totA,0));
+    const wb=XLSX.utils.book_new();
+
+  // ── FOGLIO SOPRALLUOGO ──
+  const rows=[
+    ['SCHEDA DI SOPRALLUOGO — SFR Settore A1824B — Tipologia g) Parchi e Aree Attrezzate'],
+    ['Catalogo dei lavori forestali SFR 2026 — prezzi in Costo A'],
+    [],
+    ['Cantiere','Data','Tecnico','Squadra','Provincia','Comune','Località',
+     'Dimensione','E UTM32N (m)','N UTM32N (m)','Lat. WGS84','Lon. WGS84','Note'],
+    [d.cantiere,d.data,d.tecnico,d.squadra,d.provincia,d.comune,d.localita,
+     d.dimensione,coordE||'',coordN||'',coordLat||'',coordLon||'',d.note],
+    [],
+    ['#','Codice','Descrizione Intervento','U.M.','Quantità','€/U.M. (A)','Totale A (€)','% MDO'],
+  ];
+  interventi.forEach((v,i)=>{
+    const inc=r2((MDO_INC[v.cod]||0.65)*100);
+    rows.push([i+1,v.cod,v.desc,v.um,r2(v.qty),v.pA,r2(v.totA),inc/100]);
+  });
+  rows.push([]); rows.push(['','','','','','TOTALE',totA,'']);
+  rows.push([]); rows.push(['Coordinate sistema: WGS84 / UTM Zona 32N (EPSG:32632)']);
+  rows.push(['Prezzi in Costo A: esclusi spese generali e utile d\'impresa, IVA esclusa.']);
+  const ws=XLSX.utils.aoa_to_sheet(rows);
+  ws['!cols']=[{wch:22},{wch:12},{wch:18},{wch:10},{wch:16},{wch:16},{wch:18},{wch:14},
+               {wch:14},{wch:14},{wch:12},{wch:12},{wch:30}];
+  ws['!merges']=[{s:{r:0,c:0},e:{r:0,c:12}},{s:{r:1,c:0},e:{r:1,c:12}}];
+  XLSX.utils.book_append_sheet(wb,ws,'Sopralluogo');
+
+  // ── FOGLIO PIANIFICAZIONE ──
+  const costH=parseFloat(document.getElementById('p-cost-h').value)||20.54;
+  const oreGiorno=parseFloat(document.getElementById('p-ore').value)||8;
+  const nUomini=parseInt(document.getElementById('n-uomini-cantiere').value)||2;
+  const totMDO=r2(interventi.reduce((s,v)=>s+v.totA*(MDO_INC[v.cod]||0.65),0));
+  const totH=r2(totMDO/costH);
+  const ggUomo=r2(totH/oreGiorno);
+  const ggSquadra=Math.ceil(ggUomo/nUomini);
+  const rows2=[
+    ['PIANIFICAZIONE UOMINI/GIORNO — SFR Settore A1824B'],
+    [],
+    ['Cantiere','Data','Tecnico','Squadra','Provincia','Comune','Località','Dimensione'],
+    [d.cantiere,d.data,d.tecnico,d.squadra,d.provincia,d.comune,d.localita,d.dimensione],
+    [],
+    ['PARAMETRI DI CALCOLO'],
+    ['Costo orario MDO medio (€/h)',r2(costH),'Ore lavorative/giornata',r2(oreGiorno),'N° uomini squadra',nUomini],
+    [],
+    ['RIEPILOGO'],
+    ['Valore totale stima A (€)',totA],
+    ['Quota manodopera (€)',totMDO],
+    ['Incidenza MDO (%)',r2(totA>0?totMDO/totA*100:0)],
+    ['Ore totali manodopera',totH],
+    ['Uomini/Giorno totali',ggUomo],
+    ['Giornate lavorative necessarie (squadra '+nUomini+' uomini)',ggSquadra],
+    [],
+    ['DETTAGLIO PER VOCE'],
+    ['Voce','Descrizione','Qtà','U.M.','Costo A (€)','% MDO','Quota MDO (€)','Ore MDO','Gg/Uomo','Gg Squadra'],
+  ];
+  interventi.forEach(v=>{
+    const inc=MDO_INC[v.cod]||0.65;
+    const mdo=r2(v.totA*inc);
+    const h=r2(mdo/costH);
+    const gU=r2(h/oreGiorno);
+    const gS=Math.ceil(gU/nUomini);
+    rows2.push([v.cod,v.desc,r2(v.qty),v.um,r2(v.totA),r2(inc*100),mdo,h,gU,gS]);
+  });
+  rows2.push([]); rows2.push(['TOTALE','','','',totA,r2(totA>0?totMDO/totA*100:0),totMDO,totH,ggUomo,ggSquadra]);
+  const ws2=XLSX.utils.aoa_to_sheet(rows2);
+  ws2['!cols']=[{wch:22},{wch:42},{wch:8},{wch:7},{wch:14},{wch:8},{wch:14},{wch:10},{wch:10},{wch:12}];
+  ws2['!merges']=[{s:{r:0,c:0},e:{r:0,c:9}}];
+  XLSX.utils.book_append_sheet(wb,ws2,'Pianificazione');
+
+  const nome=(d.cantiere.replace(/[^a-zA-Z0-9_\-]/g,'_').substring(0,30))||'SFR';
+  const dataStr=(d.data||'').replace(/-/g,'');
+  XLSX.writeFile(wb,`SFR_${nome}_${dataStr}.xlsx`);
+}
+
+// ── PIANIFICAZIONE ────────────────────────────────────────────────────────
+function aggiornaPian(){
+  const costH=parseFloat(document.getElementById('p-cost-h').value)||20.54;
+  const oreGiorno=parseFloat(document.getElementById('p-ore').value)||8;
+  const nUomini=parseInt(document.getElementById('n-uomini-cantiere').value)||2;
+  const totA=r2(interventi.reduce((s,i)=>s+i.totA,0));
+  const totMDO=r2(interventi.reduce((s,v)=>s+v.totA*(MDO_INC[v.cod]||0.65),0));
+  const totH=r2(totMDO/costH);
+  const ggUomo=r2(totH/oreGiorno);
+  const ggSquadra=Math.ceil(ggUomo/nUomini);
+  document.getElementById('p-tot-a').textContent='€ '+fmt(totA);
+  document.getElementById('p-mdo').textContent='€ '+fmt(totMDO);
+  document.getElementById('p-inc').textContent=totA>0?fmt(r2(totMDO/totA*100),1)+'%':'—';
+  document.getElementById('p-ore-tot').textContent=fmt(totH,1)+' h';
+  document.getElementById('p-gg-tot').textContent=fmt(ggUomo,1);
+  document.getElementById('p-gg-squadra').textContent=ggSquadra;
+  document.getElementById('p-n-disp').textContent=nUomini;
+  document.getElementById('p-uomini-disp').textContent=nUomini;
+  document.getElementById('p-ch-disp').textContent='€ '+fmt(r2(costH))+'/h';
+  const tbody=document.getElementById('p-tbody'); tbody.innerHTML='';
+  interventi.forEach(v=>{
+    const inc=MDO_INC[v.cod]||0.65;
+    const mdo=r2(v.totA*inc), h=r2(mdo/costH), gU=r2(h/oreGiorno), gS=Math.ceil(gU/nUomini);
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td><strong>${v.cod}</strong></td><td style="font-size:11px">${v.desc}</td>
+      <td>${fmt(v.qty,0)} ${v.um}</td>
+      <td style="text-align:right">€ ${fmt(r2(v.totA))}</td>
+      <td style="text-align:right">${fmt(r2(inc*100),0)}%</td>
+      <td style="text-align:right">€ ${fmt(mdo)}</td>
+      <td style="text-align:right">${fmt(h,1)} h</td>
+      <td style="text-align:right"><strong>${fmt(gU,1)}</strong></td>
+      <td style="text-align:right"><strong>${gS}</strong></td>`;
+    tbody.appendChild(tr);
+  });
+  const tr=document.createElement('tr'); tr.className='trow';
+  tr.innerHTML=`<td colspan="3"><strong>TOTALE</strong></td>
+    <td style="text-align:right"><strong>€ ${fmt(totA)}</strong></td>
+    <td style="text-align:right"><strong>${totA>0?fmt(r2(totMDO/totA*100),1):0}%</strong></td>
+    <td style="text-align:right"><strong>€ ${fmt(totMDO)}</strong></td>
+    <td style="text-align:right"><strong>${fmt(totH,1)} h</strong></td>
+    <td style="text-align:right"><strong>${fmt(ggUomo,1)}</strong></td>
+    <td style="text-align:right"><strong>${ggSquadra}</strong></td>`;
+  tbody.appendChild(tr);
+}
+
+// ── TAB ───────────────────────────────────────────────────────────────────
+function mostraTab(tab){
+  document.getElementById('tab-sopralluogo').style.display=tab==='sopralluogo'?'block':'none';
+  document.getElementById('tab-pianificazione').style.display=tab==='pianificazione'?'block':'none';
+  document.querySelectorAll('.tab').forEach(b=>b.classList.remove('on'));
+  document.getElementById('tabBtn-'+tab).classList.add('on');
+  if(tab==='pianificazione')aggiornaPian();
+}
+
+function nuovoSopralluogo(){
+  if(interventi.length>0&&!confirm('Cancellare tutti gli interventi e iniziare un nuovo sopralluogo?'))return;
+  interventi=[];
+  Object.keys(stato).forEach(k=>stato[k]={});
+  coordE=coordN=coordLat=coordLon='';
+  document.getElementById('cantiere').value='';
+  document.getElementById('comune').value='';
+  document.getElementById('localita').value='';
+  document.getElementById('dimensione').value='';
+  document.getElementById('squadra').value='';
+  document.getElementById('n-uomini-cantiere').value='2';
+  document.getElementById('note').value='';
+  document.getElementById('coord-box').style.display='none';
+  document.getElementById('gps-status').textContent='Tocca "GPS" per rilevare la posizione e il comune automaticamente';
+  document.querySelectorAll('.sez-body').forEach(b=>b.classList.remove('vis'));
+  document.querySelectorAll('.sez-btn').forEach(b=>b.classList.remove('open'));
+  setDataOggi();
+  renderInterventi();
+}
+
+// ── INIT ──────────────────────────────────────────────────────────────────
+renderSezioni();
+renderInterventi();
+setDataOggi();
+caricaProfilo();
+</script>
+</body>
+</html>
