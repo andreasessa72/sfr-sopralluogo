@@ -1,0 +1,16 @@
+CONTRASSEGNATURA DI CAMPO – versione offline per GitHub Pages
+
+Carica TUTTI questi file nella stessa cartella del repository:
+  index.html  sw.js  manifest.webmanifest  icon-192.png  icon-512.png
+
+Consigliato: una cartella "contrassegnatura" dentro il repository (o un repository a parte),
+così non interferisce con altre app già pubblicate.
+Indirizzo: https://TUONOME.github.io/NOME-REPOSITORY/contrassegnatura/
+
+Prima volta: apri l'indirizzo con il telefono connesso a internet, poi
+  Chrome: menu ⋮ > Installa app (o Aggiungi a schermata Home)
+  Safari: Condividi > Aggiungi alla schermata Home
+Da quel momento l'app si apre anche senza rete.
+
+Aggiornamenti: sostituisci index.html e in sw.js aumenta VERSIONE (es. v2.1).
+I dati restano sul telefono. Fai spesso "Salva backup" dall'archivio Cantieri.
