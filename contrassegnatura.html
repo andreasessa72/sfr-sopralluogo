@@ -1,0 +1,454 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+</head>
+<body>
+<title>Contrassegnatura di campo</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+/* Layout: strumento da campo a colonna singola, bersagli grandi per il pollice, alto contrasto per la luce del bosco */
+:root{
+  --bg:#f3f5f1; --surface:#ffffff; --ink:#17231b; --muted:#56655a; --line:#d5ddd4;
+  --forest:#1f4d33; --forest-ink:#ffffff; --paint:#e8590c; --paint-ink:#ffffff;
+  --keep:#1c6fb5; --bio:#7a4fb8; --warn-bg:#fff2d6; --warn:#8a5a00; --bad:#b42318; --ok:#1d7a45;
+  --f-display:"Barlow Condensed","Arial Narrow",Arial,sans-serif;
+  --f-body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0f1712; --surface:#18231c; --ink:#e7eee8; --muted:#9aaa9e; --line:#2c3a31;
+  --forest:#3f8f5e; --forest-ink:#0b130e; --paint:#ff7a2e; --paint-ink:#1a0d04;
+  --keep:#5aa7ea; --bio:#b693ec; --warn-bg:#3a2c0c; --warn:#f2c46b; --bad:#ff7b6e; --ok:#5fd18f; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0f1712; --surface:#18231c; --ink:#e7eee8; --muted:#9aaa9e; --line:#2c3a31;
+  --forest:#3f8f5e; --forest-ink:#0b130e; --paint:#ff7a2e; --paint-ink:#1a0d04;
+  --keep:#5aa7ea; --bio:#b693ec; --warn-bg:#3a2c0c; --warn:#f2c46b; --bad:#ff7b6e; --ok:#5fd18f; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:16px;line-height:1.45;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:0 96px}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--forest)}
+.wrap{max-width:720px;margin:0 auto;display:flex;flex-direction:column;gap:16px}
+header.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--forest);color:var(--forest-ink);
+  margin-inline:calc(-1*max(16px,env(safe-area-inset-left,0px)));padding:10px max(16px,env(safe-area-inset-left,0px));
+  display:flex;align-items:center;gap:12px}
+header.top h1{font-family:var(--f-display);font-weight:700;font-size:1.45rem;letter-spacing:.02em;margin:0;line-height:1.1;flex:1;min-width:0}
+header.top .sub{display:block;font-family:var(--f-body);font-size:.78rem;font-weight:500;opacity:.85;letter-spacing:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sync{font-size:.72rem;font-weight:600;padding:4px 8px;border-radius:999px;background:rgba(255,255,255,.18);white-space:nowrap}
+nav.tabs{display:flex;gap:6px;overflow-x:auto}
+nav.tabs button{flex:1;min-width:max-content}
+h2{font-family:var(--f-display);font-weight:700;font-size:1.5rem;margin:0;text-wrap:balance;letter-spacing:.01em}
+h3{font-family:var(--f-display);font-weight:600;font-size:1.15rem;margin:0;letter-spacing:.02em;text-transform:uppercase;color:var(--muted)}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:12px;min-width:0}
+.row{display:flex;gap:10px;flex-wrap:wrap}
+.row>*{flex:1 1 140px;min-width:0}
+label{display:flex;flex-direction:column;gap:4px;font-size:.8rem;font-weight:600;color:var(--muted);letter-spacing:.02em}
+input,select,textarea{font:inherit;font-size:1rem;color:var(--ink);background:var(--bg);border:1.5px solid var(--line);border-radius:8px;padding:10px 10px;width:100%;min-height:46px}
+textarea{min-height:70px;resize:vertical}
+input:focus,select:focus,textarea:focus,button:focus-visible{outline:3px solid var(--paint);outline-offset:1px}
+button{font:inherit;font-weight:600;border-radius:10px;border:1.5px solid var(--line);background:var(--surface);color:var(--ink);padding:10px 14px;min-height:46px;cursor:pointer}
+button.primary{background:var(--forest);border-color:var(--forest);color:var(--forest-ink)}
+button.paint{background:var(--paint);border-color:var(--paint);color:var(--paint-ink)}
+button.ghost{background:transparent}
+button.danger{color:var(--bad);border-color:var(--bad);background:transparent}
+button.sel{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+button:disabled{opacity:.45;cursor:not-allowed}
+.mono,.num{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+.muted{color:var(--muted);font-size:.85rem}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chips button{min-height:40px;padding:6px 12px;font-weight:500;font-size:.92rem}
+.seg{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.seg button{padding:8px 4px;font-size:.88rem}
+.seg button[data-s="taglio"].sel{background:var(--paint);border-color:var(--paint);color:var(--paint-ink)}
+.seg button[data-s="allievo"].sel{background:var(--keep);border-color:var(--keep);color:#fff}
+.seg button[data-s="bio"].sel{background:var(--bio);border-color:var(--bio);color:#fff}
+.card{display:flex;flex-direction:column;gap:8px;text-align:left;width:100%;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px;font-weight:400}
+.card .t{font-family:var(--f-display);font-weight:700;font-size:1.25rem;letter-spacing:.01em}
+.kv{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.kv div{display:flex;flex-direction:column;gap:2px;min-width:0}
+.kv b{font-family:var(--f-mono);font-variant-numeric:tabular-nums;font-size:1.05rem;font-weight:500}
+.kv span{font-size:.7rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+@media (max-width:440px){.kv{grid-template-columns:repeat(2,1fr)}}
+.note{background:var(--warn-bg);color:var(--warn);border-radius:8px;padding:10px 12px;font-size:.88rem;font-weight:500}
+.note.bad{color:var(--bad)}
+.okline{color:var(--ok);font-size:.88rem;font-weight:600}
+.scroll{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:.9rem}
+th,td{padding:7px 8px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}
+th{font-size:.72rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:600}
+td.n,th.n{text-align:right;font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+.dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;vertical-align:middle}
+.d-taglio{background:var(--paint)}.d-resta{background:var(--line)}.d-allievo{background:var(--keep)}.d-bio{background:var(--bio)}
+.gpsbox{display:flex;flex-direction:column;gap:8px;padding-bottom:10px;border-bottom:1px solid var(--line)}
+.coordbox{display:flex;flex-direction:column;gap:10px;border:1.5px dashed var(--line);border-radius:10px;padding:12px}
+.pt{display:flex;gap:10px;align-items:center;justify-content:space-between;border-bottom:1px solid var(--line);padding-block:8px;flex-wrap:wrap}
+.pt:last-child{border-bottom:0}
+.pt .c{font-family:var(--f-mono);font-size:.9rem;font-variant-numeric:tabular-nums}
+a{color:var(--forest)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) a{color:var(--ok)}}
+:root[data-theme="dark"] a{color:var(--ok)}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(16px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:999px;font-weight:600;font-size:.9rem;z-index:20;max-width:90vw}
+.empty{text-align:center;padding:28px 16px;color:var(--muted)}
+.empty strong{display:block;font-family:var(--f-display);font-size:1.3rem;color:var(--ink);margin-bottom:6px}
+.trees .tr{display:flex;align-items:center;gap:10px;padding-block:8px;border-bottom:1px solid var(--line)}
+.trees .tr:last-child{border-bottom:0}
+.trees .tr .i{font-family:var(--f-mono);color:var(--muted);width:2.4em;text-align:right;flex:none}
+.trees .tr .sp{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.trees .tr .dm{font-family:var(--f-mono);font-variant-numeric:tabular-nums;width:4.5em;text-align:right}
+.trees .tr button{min-height:36px;padding:4px 10px;font-size:.85rem}
+.big{font-family:var(--f-mono);font-size:1.6rem;font-variant-numeric:tabular-nums;text-align:center}
+.stepper{display:grid;grid-template-columns:56px 1fr 56px;gap:6px}
+.stepper button{font-size:1.4rem;padding:0}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+
+<header class="top">
+  <h1>Contrassegnatura di campo<span class="sub" id="hdrSub">Aree campione · diradamento</span></h1>
+  <span class="sync" id="sync">Avvio…</span>
+</header>
+
+<div class="wrap" id="app" style="margin-top:14px"></div>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+/* ---------- Coordinate UTM WGS84 ---------- */
+const UTM=(()=>{const a=6378137,f=1/298.257223563,k0=0.9996,e2=f*(2-f),ep2=e2/(1-e2),e4=e2*e2,e6=e4*e2;
+const rad=x=>x*Math.PI/180,deg=x=>x*180/Math.PI,l0z=z=>rad((z-1)*6-180+3);
+function toUTM(lat,lon,zone=32){const l0=l0z(zone),p=rad(lat),L=rad(lon),s=Math.sin(p),c=Math.cos(p),t=Math.tan(p);
+ const N=a/Math.sqrt(1-e2*s*s),T=t*t,C=ep2*c*c,A=c*(L-l0);
+ const M=a*((1-e2/4-3*e4/64-5*e6/256)*p-(3*e2/8+3*e4/32+45*e6/1024)*Math.sin(2*p)+(15*e4/256+45*e6/1024)*Math.sin(4*p)-(35*e6/3072)*Math.sin(6*p));
+ return{E:k0*N*(A+(1-T+C)*A**3/6+(5-18*T+T*T+72*C-58*ep2)*A**5/120)+500000,
+  N:k0*(M+N*t*(A*A/2+(5-T+9*C+4*C*C)*A**4/24+(61-58*T+T*T+600*C-330*ep2)*A**6/720))};}
+function fromUTM(E,Nn,zone=32){const l0=l0z(zone),mu=(Nn/k0)/(a*(1-e2/4-3*e4/64-5*e6/256)),e1=(1-Math.sqrt(1-e2))/(1+Math.sqrt(1-e2));
+ const p1=mu+(3*e1/2-27*e1**3/32)*Math.sin(2*mu)+(21*e1*e1/16-55*e1**4/32)*Math.sin(4*mu)+(151*e1**3/96)*Math.sin(6*mu)+(1097*e1**4/512)*Math.sin(8*mu);
+ const s=Math.sin(p1),c=Math.cos(p1),t=Math.tan(p1),N1=a/Math.sqrt(1-e2*s*s),T1=t*t,C1=ep2*c*c,R1=a*(1-e2)/Math.pow(1-e2*s*s,1.5),D=(E-500000)/(N1*k0);
+ return{lat:deg(p1-(N1*t/R1)*(D*D/2-(5+3*T1+10*C1-4*C1*C1-9*ep2)*D**4/24+(61+90*T1+298*C1+45*T1*T1-252*ep2-3*C1*C1)*D**6/720)),
+  lon:deg(l0+(D-(1+2*T1+C1)*D**3/6+(5-2*C1+28*T1-3*C1*C1+8*ep2+24*T1*T1)*D**5/120)/c)};}
+/* Legge "45.0712, 7.4651" oppure 45°04'16.3"N 7°27'54.4"E */
+function parseLatLon(str){if(!str)return null;const s=str.trim().replace(/,(?=\d)/g,m=>m);
+ const dms=/(\d+(?:[.,]\d+)?)\s*°\s*(?:(\d+(?:[.,]\d+)?)\s*['′’]\s*)?(?:(\d+(?:[.,]\d+)?)\s*(?:"|″|”|'')\s*)?([NSEWO])?/gi;
+ const parts=[...s.matchAll(dms)];
+ if(parts.length>=2){const v=parts.slice(0,2).map(m=>{let x=+m[1].replace(',','.')+(m[2]?+m[2].replace(',','.')/60:0)+(m[3]?+m[3].replace(',','.')/3600:0);
+   const h=(m[4]||'').toUpperCase();if(h==='S'||h==='W'||h==='O')x=-x;return{x,h};});
+   let lat=v[0].x,lon=v[1].x;if(v[0].h==='E'||v[0].h==='W'||v[0].h==='O'){[lat,lon]=[lon,lat];}return check(lat,lon);}
+ const nums=s.match(/-?\d+(?:\.\d+)?/g);if(nums&&nums.length>=2)return check(+nums[0],+nums[1]);return null;
+ function check(lat,lon){return(isFinite(lat)&&isFinite(lon)&&Math.abs(lat)<=90&&Math.abs(lon)<=180)?{lat,lon}:null;}}
+return{toUTM,fromUTM,parseLatLon};})();
+const inPiemonte=(E,N)=>E>300000&&E<540000&&N>4840000&&N<5160000;
+
+/* ---------- Dati di riferimento ---------- */
+const SPECIE=["Castagno","Robinia","Rovere","Farnia","Roverella","Cerro","Carpino bianco","Carpino nero","Frassino maggiore","Acero campestre","Acero di monte","Ciliegio selvatico","Tiglio","Betulla","Pino silvestre","Faggio","Ontano nero","Pioppo tremolo","Orniello","Olmo campestre","Sorbo","Quercia rossa","Ciliegio tardivo","Ailanto","Acero americano","Altra specie"];
+const SPORADICHE=new Set(["Acero campestre","Acero di monte","Frassino maggiore","Ciliegio selvatico","Tiglio","Olmo campestre","Sorbo"]);
+const ESOTICHE=new Set(["Quercia rossa","Ciliegio tardivo","Ailanto","Acero americano"]);
+const STATI={taglio:"Taglio",resta:"Non segnata",allievo:"Allievo",bio:"Biodiversità"};
+const PUNTI=["Centro area","Vertice","Albero biodiversità","Imposto","Accesso","Altro"];
+
+/* ---------- Stato ---------- */
+const LS="contrassegnatura-v1";
+let S={progetto:{comune:"Rosta (TO)",localita:"",supHa:4.9,rilevatore:"",tecnico:"",vernice:"Arancio",criterio:"Diradamento dal basso",fForma:0.5,densita:9},aree:{}};
+let view={name:"aree",id:null,tab:"piante",nuovaSp:"Castagno",nuovoStato:"taglio",nuovoD:20,confirm:null};
+let db=null,dl=null,dirty=new Set(),saving=new Set(),online=false;
+try{const raw=localStorage.getItem(LS);if(raw){const o=JSON.parse(raw);if(o&&o.aree){S=Object.assign(S,o);S.progetto=Object.assign({},S.progetto,o.progetto||{});}if(o&&o.dirty)o.dirty.forEach(x=>dirty.add(x));}}catch(e){}
+function saveLocal(){try{localStorage.setItem(LS,JSON.stringify({progetto:S.progetto,aree:S.aree,dirty:[...dirty]}));}catch(e){}}
+
+const $=s=>document.querySelector(s);
+const esc=v=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const fmt=(x,d=1)=>isFinite(x)?x.toLocaleString("it-IT",{minimumFractionDigits:d,maximumFractionDigits:d}):"–";
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+function toast(t){const el=$("#toast");el.textContent=t;el.hidden=false;clearTimeout(toast._t);toast._t=setTimeout(()=>el.hidden=true,2200);}
+function setSync(){const el=$("#sync");if(!db){el.textContent="Solo su questo telefono";return;}
+ el.textContent=(dirty.size||saving.size)?(online?"Salvataggio…":"In attesa di rete"):(online?"Sincronizzato":"Connessione…");}
+
+/* ---------- Calcoli ---------- */
+function supArea(a){if(a.forma==="cerchio")return Math.PI*(+a.raggio||0)**2;return +a.superficie||0;}
+function calc(a){const sup=supArea(a),k=sup>0?10000/sup:NaN,P=a.piante||[];
+ const g=d=>Math.PI*((+d||0)/200)**2;let N=0,G=0,Nt=0,Gt=0,Nr=0,Nb=0,hs=[];const sp={};
+ for(const p of P){const gi=g(p.d);N++;G+=gi;if(p.stato==="taglio"){Nt++;Gt+=gi;}if(p.stato==="allievo")Nr++;if(p.stato==="bio")Nb++;
+  if(+p.h>0)hs.push(+p.h);const s=sp[p.specie]||(sp[p.specie]={n:0,g:0,nt:0,gt:0});s.n++;s.g+=gi;if(p.stato==="taglio"){s.nt++;s.gt+=gi;}}
+ const H=+a.hMedia>0?+a.hMedia:(hs.length?hs.reduce((x,y)=>x+y,0)/hs.length:NaN);
+ const f=+S.progetto.fForma||0.5;
+ return{sup,k,N,G,Nt,Gt,Nr,Nb,H,sp,Nha:N*k,Gha:G*k,Ntha:Nt*k,Gtha:Gt*k,Gpost:(G-Gt)*k,pctN:N?Nt/N*100:0,pctG:G?Gt/G*100:0,
+  Vtha:Gt*k*H*f,Vha:G*k*H*f};}
+function avvisi(a,c){const out=[];const cat=(a.categoria||"").toLowerCase();
+ const minCop=(cat.includes("robin")||cat.includes("castagn"))?50:50;
+ if(+a.copDopo>0&&+a.copDopo<minCop)out.push({bad:1,t:`Copertura a fine intervento ${a.copDopo}%: deve restare almeno al 50% (art. 22)${minCop>50?"":""}.`});
+ if((cat.includes("robin")||cat.includes("castagn"))&&+a.copDopo===50)out.push({bad:1,t:"Nei robinieti e castagneti la copertura residua deve essere superiore al 50% (art. 55)."});
+ for(const [s,v] of Object.entries(c.sp)){if(SPORADICHE.has(s)&&v.nt>0&&c.k&&v.n*c.k<20)out.push({bad:1,t:`${s} è sporadica con meno di 20 piante/ha: va rilasciata (art. 42). Ci sono ${v.nt} piante segnate al taglio.`});
+  if(ESOTICHE.has(s)&&v.n>v.nt)out.push({t:`${s} è esotica invasiva: valutare il taglio delle piante non segnate (art. 42 ter).`});}
+ if(c.pctG>40)out.push({t:`Prelievo del ${fmt(c.pctG,0)}% dell'area basimetrica: diradamento forte, verificare la stabilità del popolamento.`});
+ if(c.sup>0&&c.sup<500)out.push({t:"Area campione sotto i 500 m²: poco rappresentativa per un diradamento."});
+ if(!a.punti||!a.punti.some(p=>p.tipo==="Centro area"))out.push({t:"Manca il punto del centro area: inseriscilo nella scheda Punti."});
+ return out;}
+
+/* ---------- Persistenza db ---------- */
+async function flush(id){if(!db||saving.has(id))return;saving.add(id);setSync();
+ try{if(id==="__progetto"){await db.doc("progetto/info").set(JSON.parse(JSON.stringify(S.progetto)));}
+  else if(S.aree[id]){await db.collection("aree").doc(id).set(JSON.parse(JSON.stringify(S.aree[id])));}
+  else{await db.collection("aree").doc(id).delete();}
+  dirty.delete(id);online=true;}
+ catch(e){if(e&&e.code==="quota_exceeded")toast("Spazio dati esaurito: elimina aree non più utili");else online=false;}
+ finally{saving.delete(id);saveLocal();setSync();if(dirty.has(id)&&online)setTimeout(()=>flush(id),400);}}
+const timers={};
+function mark(id){dirty.add(id);saveLocal();setSync();clearTimeout(timers[id]);timers[id]=setTimeout(()=>flush(id),700);}
+function retryAll(){[...dirty].forEach(id=>flush(id));}
+window.addEventListener("online",retryAll);
+setInterval(()=>{if(db&&dirty.size&&!saving.size)retryAll();},20000);
+
+async function initDb(){if(!window.claude||!claude.use){setSync();return;}
+ claude.use("downloads").then(d=>{dl=d;render();});
+ db=await claude.use("db");if(!db){setSync();return;}
+ let timer=setTimeout(()=>{if(!online){$("#sync").textContent="Rete assente: dati sul telefono";}},10000);
+ db.doc("progetto/info").onSnapshot(s=>{if(s.exists&&!dirty.has("__progetto")){S.progetto=Object.assign({},S.progetto,s.data());saveLocal();render();}},()=>{});
+ db.collection("aree").onSnapshot(snap=>{if(!snap.metadata.fromCache){online=true;clearTimeout(timer);}
+  const seen=new Set();for(const d of snap.docs){seen.add(d.id);if(!dirty.has(d.id))S.aree[d.id]=JSON.parse(JSON.stringify(d.data()));}
+  if(!snap.metadata.fromCache){for(const id of Object.keys(S.aree))if(!seen.has(id)&&!dirty.has(id))delete S.aree[id];}
+  saveLocal();setSync();retryAll();render();},
+  e=>{online=false;clearTimeout(timer);setSync();});
+ setSync();}
+
+/* ---------- Render ---------- */
+function render(){const ae=document.activeElement,fid=ae&&ae.id,pos=ae&&ae.selectionStart;
+ const app=$("#app");const p=S.progetto;
+ $("#hdrSub").textContent=[p.comune,p.localita].filter(Boolean).join(" · ")||"Aree campione · diradamento";
+ let h=`<nav class="tabs">${[["aree","Aree"],["riepilogo","Riepilogo"],["progetto","Cantiere"]].map(([k,t])=>
+   `<button data-go="${k}" class="${view.name===k||(view.name==="area"&&k==="aree")?"sel":""}">${t}</button>`).join("")}</nav>`;
+ if(view.name==="area"&&S.aree[view.id])h+=rArea(S.aree[view.id]);
+ else if(view.name==="riepilogo")h+=rRiepilogo();
+ else if(view.name==="progetto")h+=rProgetto();
+ else h+=rAree();
+ app.innerHTML=h;
+ if(fid){const el=document.getElementById(fid);if(el){el.focus();try{if(pos!=null)el.setSelectionRange(pos,pos);}catch(e){}}}
+ setSync();}
+
+function rAree(){const ids=Object.keys(S.aree).sort((a,b)=>(S.aree[a].creata||"").localeCompare(S.aree[b].creata||""));
+ let h=`<div class="row" style="align-items:center"><h2 style="flex:3 1 200px">Aree campione</h2>
+  <button class="paint" data-act="nuovaArea" style="flex:1 1 160px">+ Nuova area</button></div>`;
+ if(!ids.length)return h+`<div class="panel empty"><strong>Nessuna area campione</strong>
+   Crea la prima area: inserisci il centro in coordinate UTM 32N WGS84, poi registra ogni pianta con specie, diametro e contrassegno.
+   Come riferimento, almeno 1.000 m² ogni 2 ha di intervento.</div>`;
+ return h+ids.map(id=>{const a=S.aree[id],c=calc(a),ctr=(a.punti||[]).find(x=>x.tipo==="Centro area");
+  return`<button class="card" data-open="${id}"><div class="row" style="justify-content:space-between;align-items:baseline">
+   <span class="t">${esc(a.nome)}</span><span class="muted">${fmt(c.sup,0)} m² · ${c.N} piante${dirty.has(id)?" · da sincronizzare":""}</span></div>
+   ${ctr?`<span class="mono muted">E ${fmt(ctr.E,0)} · N ${fmt(ctr.N,0)}</span>`:`<span class="muted">Centro non inserito</span>`}
+   <div class="kv"><div><b>${fmt(c.Nha,0)}</b><span>N/ha</span></div><div><b>${fmt(c.Gha)}</b><span>G m²/ha</span></div>
+   <div><b>${fmt(c.Gtha)}</b><span>G prel. m²/ha</span></div><div><b>${fmt(c.pctG,0)}%</b><span>prelievo G</span></div></div></button>`;}).join("");}
+
+function rArea(a){const c=calc(a),t=view.tab;
+ let h=`<div class="row" style="align-items:center"><button class="ghost" data-go="aree" style="flex:0 0 auto">← Aree</button>
+  <h2 style="flex:1 1 160px">${esc(a.nome)}</h2></div>
+  <nav class="tabs">${[["piante","Piante"],["punti","Punti"],["dati","Dati area"],["risultati","Risultati"]].map(([k,l])=>`<button data-tab="${k}" class="${t===k?"sel":""}">${l}</button>`).join("")}</nav>`;
+ if(t==="punti")h+=rPunti(a);else if(t==="dati")h+=rDati(a);else if(t==="risultati")h+=rRisultati(a,c);else h+=rPiante(a,c);
+ return h;}
+
+function rPiante(a,c){const P=a.piante||[];
+ const recenti=[...new Set(P.slice().reverse().map(p=>p.specie))].slice(0,6);const lista=[...new Set([...recenti,...SPECIE])];
+ return`<section class="panel"><h3>Registra pianta n. ${P.length+1}</h3>
+  <div class="chips">${lista.slice(0,12).map(s=>`<button data-sp="${esc(s)}" class="${view.nuovaSp===s?"sel":""}">${esc(s)}</button>`).join("")}</div>
+  <label for="spSel">Altre specie<select id="spSel">${SPECIE.map(s=>`<option ${s===view.nuovaSp?"selected":""}>${esc(s)}</option>`).join("")}</select></label>
+  <label for="dIn">Diametro a 1,30 m (cm)</label>
+  <div class="stepper"><button data-dd="-5" aria-label="Meno 5 cm">−</button>
+   <input id="dIn" class="big" inputmode="decimal" value="${esc(view.nuovoD)}" aria-label="Diametro in cm">
+   <button data-dd="5" aria-label="Più 5 cm">+</button></div>
+  <div class="seg" role="group" aria-label="Contrassegno">${Object.entries(STATI).map(([k,l])=>`<button data-s="${k}" class="${view.nuovoStato===k?"sel":""}">${l}</button>`).join("")}</div>
+  <div class="row"><label for="hIn">Altezza m (facolt.)<input id="hIn" inputmode="decimal" placeholder="es. 18"></label>
+   <label for="nIn" style="flex:2 1 180px">Nota (facolt.)<input id="nIn" placeholder="es. doppia cima, nido"></label></div>
+  <button class="primary" data-act="addPianta" style="min-height:54px;font-size:1.05rem">Aggiungi pianta</button>
+  <p class="muted" style="margin:0">Registra tutte le piante dell'area sopra la soglia di cavallettamento, anche quelle non segnate: servono per l'area basimetrica prima e dopo.</p></section>
+  <section class="panel"><div class="row" style="justify-content:space-between;align-items:baseline"><h3>Piante registrate (${P.length})</h3>
+   <span class="muted"><span class="dot d-taglio"></span>${c.Nt} taglio · <span class="dot d-allievo"></span>${c.Nr} allievi · <span class="dot d-bio"></span>${c.Nb} biod.</span></div>
+  ${P.length?`<div class="trees">${P.map((p,i)=>i).reverse().map(i=>{const p=P[i];const conf=view.confirm==="p"+p.id;
+   return`<div class="tr"><span class="i">${i+1}</span><span class="dot d-${p.stato}"></span><span class="sp">${esc(p.specie)}${p.note?` <span class="muted">· ${esc(p.note)}</span>`:""}</span>
+   <span class="dm">${fmt(+p.d,0)} cm</span>${conf?`<button class="danger" data-delp="${p.id}">Elimina</button>`:`<button class="ghost" data-askp="${p.id}" aria-label="Elimina pianta ${i+1}">✕</button>`}</div>`;}).join("")}</div>`
+   :`<p class="muted" style="margin:0">Nessuna pianta ancora. Seleziona specie, diametro e contrassegno, poi tocca Aggiungi pianta.</p>`}</section>`;}
+
+function rPunti(a){const P=a.punti||[];const cm=view.coordMode||"utm";
+ let prev="";const E=parseFloat((view.cE||"").replace(",",".")),N=parseFloat((view.cN||"").replace(",","."));
+ if(cm==="utm"&&isFinite(E)&&isFinite(N)){const ll=UTM.fromUTM(E,N);prev=`Lat/Lon: <span class="mono">${ll.lat.toFixed(6)}, ${ll.lon.toFixed(6)}</span>`+(inPiemonte(E,N)?"":`<div class="note bad">Coordinate fuori dal Piemonte nel fuso 32N: controlla E e N (sono in WGS84, non ED50?).</div>`);}
+ if(cm==="ll"){const ll=UTM.parseLatLon(view.cLL||"");if(ll){const u=UTM.toUTM(ll.lat,ll.lon);prev=`UTM 32N: <span class="mono">E ${fmt(u.E,0)} · N ${fmt(u.N,0)}</span>`+(inPiemonte(u.E,u.N)?"":`<div class="note bad">Punto fuori dal Piemonte: controlla le coordinate.</div>`);}else if(view.cLL)prev=`<span class="note bad" style="display:block">Formato non riconosciuto. Esempi: 45.0712, 7.4651 oppure 45°04'16"N 7°27'54"E</span>`;}
+ return`<section class="panel"><h3>Battere un punto · UTM 32N WGS84 (EPSG:32632)</h3>
+  <div class="coordbox">
+  <div class="seg" style="grid-template-columns:1fr 1fr"><button data-cm="utm" class="${cm==="utm"?"sel":""}">Inserisci E / N</button><button data-cm="ll" class="${cm==="ll"?"sel":""}">Incolla Lat/Lon</button></div>
+  <div class="gpsbox"><div class="row" style="align-items:center">
+   ${gpsWatch!==null?`<button class="danger" data-act="gpsStop" style="flex:1 1 140px">Ferma GPS</button>`:`<button class="paint" data-act="gpsStart" style="flex:1 1 140px">📡 Rileva con GPS</button>`}
+   ${gpsMedia()?`<button class="primary" data-act="gpsUsa" style="flex:1 1 140px">Usa la media</button>`:""}</div>
+   ${view.gpsMsg?`<div class="muted">${esc(view.gpsMsg)}</div>`:""}
+   ${gpsMedia()?(()=>{const m=gpsMedia(),u=UTM.toUTM(m.lat,m.lon);return`<div class="mono" style="font-size:.95rem">E ${fmt(u.E,0)} · N ${fmt(u.N,0)} <span class="muted">· ±${fmt(m.acc,0)} m · ${m.n} letture</span></div>`;})():""}
+  </div>
+  <label for="ptTipo">Tipo di punto<select id="ptTipo">${PUNTI.map(t=>`<option ${t===(view.ptTipo||"Centro area")?"selected":""}>${t}</option>`).join("")}</select></label>
+  ${cm==="utm"?`<div class="row"><label for="cE">Est E (m)<input id="cE" class="mono" inputmode="decimal" placeholder="379176" value="${esc(view.cE||"")}"></label>
+   <label for="cN">Nord N (m)<input id="cN" class="mono" inputmode="decimal" placeholder="4992006" value="${esc(view.cN||"")}"></label></div>`
+   :`<label for="cLL">Latitudine, longitudine (gradi WGS84)<input id="cLL" class="mono" placeholder="45.0712, 7.4651" value="${esc(view.cLL||"")}"></label>
+   <p class="muted" style="margin:0">Leggi le coordinate dal GPS o da un'app di mappe (tieni premuto sul punto) e incollale qui: l'app le converte in UTM 32N.</p>`}
+  ${prev?`<div class="muted">${prev}</div>`:""}
+  <div class="row"><label for="cQ">Quota m (facolt.)<input id="cQ" inputmode="decimal" value="${esc(view.cQ||"")}"></label>
+   <label for="cNote" style="flex:2 1 180px">Nota (facolt.)<input id="cNote" value="${esc(view.cNote||"")}" placeholder="es. picchetto rosso, faggio n. 12"></label></div>
+  <button class="primary" data-act="addPunto">Registra punto</button></div>
+  <p class="muted" style="margin:0">Il GPS funziona aprendo il file dell'app nel browser del telefono; dentro claude.ai la posizione è bloccata e le coordinate vanno inserite a mano o incollate. Resta fermo sul punto e lascia accumulare qualche lettura: l'app fa la media pesata sulla precisione. Tutto il Piemonte ricade nel fuso 32.</p></section>
+  <section class="panel"><h3>Punti dell'area (${P.length})</h3>
+  ${P.length?P.map(pt=>{const ll=UTM.fromUTM(pt.E,pt.N);const conf=view.confirm==="t"+pt.id;
+   return`<div class="pt"><div style="min-width:0"><strong>${esc(pt.tipo)}</strong>${pt.note?` <span class="muted">· ${esc(pt.note)}</span>`:""}
+    <div class="c">E ${fmt(pt.E,0)} · N ${fmt(pt.N,0)}${pt.quota?` · ${esc(pt.quota)} m`:""}${pt.acc?` · ±${esc(pt.acc)} m GPS`:""}</div>
+    <div class="muted mono">${ll.lat.toFixed(6)}, ${ll.lon.toFixed(6)}</div></div>
+    <div class="row" style="flex:0 0 auto;gap:6px"><a href="https://www.openstreetmap.org/?mlat=${ll.lat.toFixed(6)}&mlon=${ll.lon.toFixed(6)}#map=18/${ll.lat.toFixed(6)}/${ll.lon.toFixed(6)}" target="_blank" rel="noopener">Mappa</a>
+    ${conf?`<button class="danger" data-delt="${pt.id}">Elimina</button>`:`<button class="ghost" data-askt="${pt.id}" aria-label="Elimina punto">✕</button>`}</div></div>`;}).join("")
+   :`<p class="muted" style="margin:0">Nessun punto. Inizia dal centro dell'area campione.</p>`}</section>`;}
+
+function rDati(a){const f=(id,l,v,ph="",im="")=>`<label for="${id}">${l}<input id="${id}" data-f="${id.slice(2)}" value="${esc(v??"")}" placeholder="${ph}" ${im?`inputmode="${im}"`:""}></label>`;
+ return`<section class="panel"><h3>Area campione</h3>
+  ${f("a_nome","Nome area",a.nome,"AC1")}
+  <div class="row"><label for="a_forma">Forma<select id="a_forma" data-f="forma"><option value="cerchio" ${a.forma==="cerchio"?"selected":""}>Cerchio (raggio)</option><option value="libera" ${a.forma!=="cerchio"?"selected":""}>Rettangolo o altra (m²)</option></select></label>
+   ${a.forma==="cerchio"?f("a_raggio","Raggio (m)",a.raggio,"17,84","decimal"):f("a_superficie","Superficie (m²)",a.superficie,"1000","decimal")}</div>
+  <p class="muted" style="margin:0">Superficie: <span class="mono">${fmt(supArea(a),0)} m²</span>. Raggio 17,84 m = 1.000 m²; 12,62 m = 500 m².</p>
+  <div class="row">${f("a_categoria","Categoria forestale",a.categoria,"es. Castagneto")}${f("a_tipo","Tipo forestale",a.tipo,"es. CA30X")}</div>
+  <div class="row"><label for="a_governo">Forma di governo<select id="a_governo" data-f="governo">${["","Ceduo","Fustaia","Governo misto","Ceduo in conversione","Robinieto","Castagneto"].map(g=>`<option ${g===(a.governo||"")?"selected":""}>${g}</option>`).join("")}</select></label>
+   ${f("a_eta","Età (anni)",a.eta,"","numeric")}</div>
+  <div class="row">${f("a_esposizione","Esposizione",a.esposizione,"es. NE")}${f("a_pendenza","Pendenza %",a.pendenza,"","decimal")}${f("a_hMedia","Altezza media m",a.hMedia,"","decimal")}</div>
+  <div class="row">${f("a_copPrima","Copertura prima %",a.copPrima,"","decimal")}${f("a_copDopo","Copertura dopo % (stima)",a.copDopo,"min 50","decimal")}</div>
+  <div class="row">${f("a_soglia","Soglia cavallettamento cm",a.soglia,"17,5","decimal")}${f("a_data","Data",a.data,"","")}</div>
+  <label for="a_note">Note<textarea id="a_note" data-f="note">${esc(a.note||"")}</textarea></label>
+  ${view.confirm==="area"?`<div class="row"><button class="danger" data-act="delArea">Elimina definitivamente</button><button data-act="noConfirm">Annulla</button></div>`
+   :`<button class="danger" data-act="askDelArea">Elimina area</button>`}</section>`;}
+
+function rRisultati(a,c){const av=avvisi(a,c);
+ const rows=Object.entries(c.sp).sort((x,y)=>y[1].g-x[1].g);
+ return`<section class="panel"><h3>Prima e dopo il diradamento</h3>
+  <div class="scroll"><table><thead><tr><th></th><th class="n">Prima</th><th class="n">Prelievo</th><th class="n">Dopo</th><th class="n">% prel.</th></tr></thead><tbody>
+  <tr><td>Piante / ha</td><td class="n">${fmt(c.Nha,0)}</td><td class="n">${fmt(c.Ntha,0)}</td><td class="n">${fmt(c.Nha-c.Ntha,0)}</td><td class="n">${fmt(c.pctN,0)}%</td></tr>
+  <tr><td>Area basimetrica m²/ha</td><td class="n">${fmt(c.Gha)}</td><td class="n">${fmt(c.Gtha)}</td><td class="n">${fmt(c.Gpost)}</td><td class="n">${fmt(c.pctG,0)}%</td></tr>
+  <tr><td>Volume m³/ha (stima)</td><td class="n">${fmt(c.Vha,0)}</td><td class="n">${fmt(c.Vtha,0)}</td><td class="n">${fmt(c.Vha-c.Vtha,0)}</td><td class="n"></td></tr>
+  <tr><td>Copertura %</td><td class="n">${a.copPrima||"–"}</td><td class="n"></td><td class="n">${a.copDopo||"–"}</td><td class="n"></td></tr>
+  </tbody></table></div>
+  <p class="muted" style="margin:0">Volume = G × altezza media (${isFinite(c.H)?fmt(c.H)+" m":"non inserita"}) × coefficiente di forma ${S.progetto.fForma}. Stima speditiva, non tavola di cubatura.</p></section>
+  <section class="panel"><h3>Per specie</h3><div class="scroll"><table><thead><tr><th>Specie</th><th class="n">N</th><th class="n">N taglio</th><th class="n">G m²/ha</th><th class="n">G prel. m²/ha</th></tr></thead><tbody>
+  ${rows.map(([s,v])=>`<tr><td>${esc(s)}</td><td class="n">${v.n}</td><td class="n">${v.nt}</td><td class="n">${fmt(v.g*c.k)}</td><td class="n">${fmt(v.gt*c.k)}</td></tr>`).join("")||`<tr><td colspan="5" class="muted">Nessuna pianta registrata</td></tr>`}
+  </tbody></table></div></section>
+  <section class="panel"><h3>Controlli regolamento</h3>${av.length?av.map(x=>`<div class="note ${x.bad?"bad":""}">${esc(x.t)}</div>`).join(""):`<div class="okline">Nessun problema rilevato sui dati inseriti.</div>`}</section>`;}
+
+function rRiepilogo(){const ids=Object.keys(S.aree);const p=S.progetto;
+ if(!ids.length)return`<div class="panel empty"><strong>Nessun dato</strong>Il riepilogo si compila dalle aree campione.</div>`;
+ const cs=ids.map(id=>({a:S.aree[id],c:calc(S.aree[id])})).filter(x=>x.c.sup>0);
+ const m=k=>cs.length?cs.reduce((s,x)=>s+(isFinite(x.c[k])?x.c[k]:0),0)/cs.length:NaN;
+ const supTot=cs.reduce((s,x)=>s+x.c.sup,0),ha=+p.supHa||0;
+ const Vt=m("Vtha")*ha,q=Vt*(+p.densita||0);
+ const sp={};cs.forEach(x=>Object.entries(x.c.sp).forEach(([s,v])=>{sp[s]=(sp[s]||0)+v.gt*x.c.k/cs.length;}));
+ const spr=Object.entries(sp).filter(x=>x[1]>0).sort((a,b)=>b[1]-a[1]);const gtot=spr.reduce((s,x)=>s+x[1],0);
+ const rapp=ha?supTot/(ha*10000)*100:NaN;
+ return`<section class="panel"><h3>Medie delle aree campione (${cs.length})</h3>
+  <div class="kv"><div><b>${fmt(m("Nha"),0)}</b><span>N/ha prima</span></div><div><b>${fmt(m("Gha"))}</b><span>G m²/ha prima</span></div>
+  <div><b>${fmt(m("Gtha"))}</b><span>G prel. m²/ha</span></div><div><b>${fmt(m("pctG"),0)}%</b><span>prelievo G</span></div></div>
+  <p class="muted" style="margin:0">Superficie campionata <span class="mono">${fmt(supTot,0)} m²</span> su ${fmt(ha,2)} ha = <span class="mono">${fmt(rapp)}%</span>.
+  ${rapp<5?` <span style="color:var(--warn);font-weight:600">Sotto il riferimento di 1.000 m² ogni 2 ha (5%).</span>`:""}</p></section>
+  <section class="panel"><h3>Dati per la comunicazione semplice</h3>
+  <div class="scroll"><table><tbody>
+  <tr><td>Superficie di intervento</td><td class="n">${fmt(ha,2)} ha</td></tr>
+  <tr><td>Volume da prelevare (stima)</td><td class="n">${fmt(Vt,0)} m³</td></tr>
+  <tr><td>Equivalente in peso (${p.densita} q/m³)</td><td class="n">${fmt(q,0)} q</td></tr>
+  ${spr.slice(0,3).map(([s,g],i)=>`<tr><td>${i===0?"Specie principale":i===1?"Specie secondaria":"Altre specie"}: ${esc(s)}</td><td class="n">${fmt(gtot?Vt*g/gtot:0,0)} m³</td></tr>`).join("")}
+  </tbody></table></div>
+  ${ha>=5?`<div class="note bad">Superficie di ${fmt(ha,2)} ha: la comunicazione semplice vale solo sotto i 5 ha.</div>`:""}
+  <p class="muted" style="margin:0">Volumi ripartiti per specie in proporzione all'area basimetrica prelevata. Correggi densità e coefficiente di forma nella scheda Cantiere.</p></section>
+  <section class="panel"><h3>Esporta</h3>
+  <div class="row"><button class="primary" data-exp="piante">Piante (CSV)</button><button class="primary" data-exp="aree">Aree e punti (CSV)</button></div>
+  <p class="muted" style="margin:0">CSV con separatore punto e virgola, si apre in Excel o QGIS (coordinate in EPSG:32632).</p></section>`;}
+
+function rProgetto(){const p=S.progetto;const f=(k,l,ph="",im="")=>`<label for="p_${k}">${l}<input id="p_${k}" data-pf="${k}" value="${esc(p[k]??"")}" placeholder="${ph}" ${im?`inputmode="${im}"`:""}></label>`;
+ return`<section class="panel"><h3>Cantiere</h3>
+  <div class="row">${f("comune","Comune")}${f("localita","Località")}</div>
+  <div class="row">${f("supHa","Superficie intervento (ha)","4,9","decimal")}${f("vernice","Colore vernice","Arancio")}</div>
+  <div class="row">${f("rilevatore","Rilevatore")}${f("tecnico","Tecnico forestale abilitato")}</div>
+  ${f("criterio","Criterio di diradamento","Diradamento dal basso")}
+  <div class="row">${f("fForma","Coefficiente di forma","0,5","decimal")}${f("densita","Densità legna fresca (q/m³)","9","decimal")}</div>
+  <p class="muted" style="margin:0">Il contrassegno si fa con anello di vernice a 1,30 m sul lato a monte e punto al piede sul lato a valle. Le aree campione fanno da modello per tutta la tagliata.</p></section>`;}
+
+/* ---------- GPS ---------- */
+let gpsWatch=null;
+function gpsMedia(){const S0=(view.gpsS||[]);if(!S0.length)return null;const best=Math.min(...S0.map(x=>x.acc));
+ const use=S0.filter(x=>x.acc<=Math.max(best*2,10));let w=0,la=0,lo=0,al=0,aw=0;
+ for(const x of use){const k=1/Math.max(x.acc,1)**2;w+=k;la+=x.lat*k;lo+=x.lon*k;if(x.alt!=null){al+=x.alt*k;aw+=k;}}
+ return{lat:la/w,lon:lo/w,alt:aw?al/aw:null,acc:best,n:use.length};}
+function gpsStart(){if(!navigator.geolocation){view.gpsMsg="Questo browser non dà accesso al GPS.";render();return;}
+ view.gpsS=[];view.gpsMsg="Ricerca della posizione… resta fermo sul punto.";
+ try{gpsWatch=navigator.geolocation.watchPosition(p=>{const c=p.coords;view.gpsS.push({lat:c.latitude,lon:c.longitude,acc:c.accuracy,alt:c.altitude});
+   if(view.gpsS.length>60)view.gpsS.shift();const m=gpsMedia();
+   view.gpsMsg=`GPS attivo · ultima precisione ±${fmt(c.accuracy,0)} m${m.acc>15?" · sotto copertura attendi qualche lettura in più":""}`;render();},
+  err=>{gpsStop(false);view.gpsMsg=err.code===1?(window.claude?"Dentro claude.ai il GPS è bloccato: apri il file dell'app nel browser del telefono, oppure inserisci le coordinate a mano.":"Permesso di posizione negato: consentilo al browser nelle impostazioni del telefono."):err.code===3?"Il GPS non risponde: spostati in un punto più aperto e riprova.":"Posizione non disponibile: verifica che la localizzazione del telefono sia attiva.";render();},
+  {enableHighAccuracy:true,maximumAge:0,timeout:30000});}catch(e){gpsWatch=null;view.gpsMsg="Il GPS non è disponibile in questa vista.";}
+ render();}
+function gpsStop(r=true){if(gpsWatch!==null){try{navigator.geolocation.clearWatch(gpsWatch);}catch(e){}}gpsWatch=null;if(r)render();}
+function gpsUsa(){const m=gpsMedia();if(!m)return;const u=UTM.toUTM(m.lat,m.lon);gpsStop(false);
+ view.coordMode="utm";view.cE=u.E.toFixed(1);view.cN=u.N.toFixed(1);if(m.alt!=null)view.cQ=Math.round(m.alt);view.cAcc=Math.round(m.acc);
+ view.gpsMsg=`Media di ${m.n} letture, precisione ±${fmt(m.acc,0)} m. Controlla e tocca Registra punto.`;render();}
+
+/* ---------- Azioni ---------- */
+function curArea(){return S.aree[view.id];}
+function nuovaArea(){const n=Object.keys(S.aree).length+1,id=uid();
+ S.aree[id]={nome:"AC"+n,forma:"cerchio",raggio:17.84,superficie:"",categoria:"",tipo:"",governo:"",eta:"",esposizione:"",pendenza:"",hMedia:"",
+  copPrima:"",copDopo:"",soglia:17.5,data:new Date().toISOString().slice(0,10),note:"",punti:[],piante:[],creata:new Date().toISOString()};
+ mark(id);view={...view,name:"area",id,tab:"punti",confirm:null,ptTipo:"Centro area"};render();toast("Area creata: inserisci il centro");}
+function addPianta(){const a=curArea();const d=parseFloat(String($("#dIn").value).replace(",","."));
+ if(!(d>0&&d<300)){toast("Inserisci un diametro valido in cm");$("#dIn").focus();return;}
+ const soglia=+a.soglia||0;if(soglia&&d<soglia){toast(`Sotto la soglia di ${soglia} cm`);}
+ const h=parseFloat(String($("#hIn").value).replace(",","."));
+ a.piante=a.piante||[];a.piante.push({id:uid(),specie:view.nuovaSp,d:Math.round(d*10)/10,h:h>0?h:null,stato:view.nuovoStato,note:$("#nIn").value.trim()});
+ view.nuovoD=Math.round(d);mark(view.id);render();toast(`Pianta ${a.piante.length}: ${view.nuovaSp} ${Math.round(d)} cm · ${STATI[view.nuovoStato]}`);}
+function addPunto(){const a=curArea();let E,N;
+ if((view.coordMode||"utm")==="utm"){E=parseFloat(($("#cE").value||"").replace(",","."));N=parseFloat(($("#cN").value||"").replace(",","."));}
+ else{const ll=UTM.parseLatLon($("#cLL").value);if(ll){const u=UTM.toUTM(ll.lat,ll.lon);E=u.E;N=u.N;}}
+ if(!(isFinite(E)&&isFinite(N))){toast("Coordinate non valide");return;}
+ if(!inPiemonte(E,N)){toast("Coordinate fuori dal Piemonte: controlla");return;}
+ a.punti=a.punti||[];a.punti.push({id:uid(),tipo:$("#ptTipo").value,E:Math.round(E*10)/10,N:Math.round(N*10)/10,quota:$("#cQ").value.trim(),note:$("#cNote").value.trim(),acc:view.cAcc||null,ora:new Date().toISOString()});
+ view.cAcc=null;view.gpsS=[];view.gpsMsg="";
+ view.cE=view.cN=view.cLL=view.cQ=view.cNote="";view.ptTipo=$("#ptTipo").value==="Centro area"?"Albero biodiversità":$("#ptTipo").value;
+ mark(view.id);render();toast("Punto registrato");}
+function csv(rows){return rows.map(r=>r.map(v=>{const s=String(v??"");return/[;"\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s;}).join(";")).join("\n");}
+async function esporta(kind){const n=v=>v==null||v===""?"":String(v).replace(".",",");let rows,name;
+ if(kind==="piante"){rows=[["area","n","specie","diametro_cm","altezza_m","contrassegno","nota"]];
+  Object.values(S.aree).forEach(a=>(a.piante||[]).forEach((p,i)=>rows.push([a.nome,i+1,p.specie,n(p.d),n(p.h),STATI[p.stato],p.note])));name="piante_aree_campione.csv";}
+ else{rows=[["area","punto","E_utm32n","N_utm32n","lat","lon","quota_m","nota","superficie_m2","categoria","governo","N_ha","G_ha","G_prel_ha","prelievo_G_pct","cop_prima","cop_dopo"]];
+  Object.values(S.aree).forEach(a=>{const c=calc(a);const base=[n(fmt(c.sup,0).replace(/\./g,"")),a.categoria,a.governo,n(c.Nha.toFixed(0)),n(c.Gha.toFixed(2)),n(c.Gtha.toFixed(2)),n(c.pctG.toFixed(1)),a.copPrima,a.copDopo];
+   const pts=a.punti&&a.punti.length?a.punti:[null];pts.forEach(pt=>{const ll=pt?UTM.fromUTM(pt.E,pt.N):null;
+    rows.push([a.nome,pt?pt.tipo:"",pt?n(pt.E):"",pt?n(pt.N):"",ll?n(ll.lat.toFixed(6)):"",ll?n(ll.lon.toFixed(6)):"",pt?pt.quota:"",pt?pt.note:"",...base]);});});name="aree_campione_punti.csv";}
+ const data="\ufeff"+csv(rows);
+ if(dl){try{await dl.save({filename:name,data});toast("File salvato");}catch(e){if(e&&e.code!=="declined")toast("Esportazione non riuscita");}return;}
+ try{const url=URL.createObjectURL(new Blob([data],{type:"text/csv;charset=utf-8"}));const a=document.createElement("a");a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),4000);toast("File scaricato");}catch(e){toast("Esportazione non disponibile qui");}}
+
+document.addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;const d=b.dataset;
+ if(d.go){gpsStop(false);view.name=d.go;view.confirm=null;render();window.scrollTo(0,0);return;}
+ if(d.open){view={...view,name:"area",id:d.open,tab:"piante",confirm:null};render();window.scrollTo(0,0);return;}
+ if(d.tab){if(d.tab!=="punti")gpsStop(false);view.tab=d.tab;view.confirm=null;render();return;}
+ if(d.sp){view.nuovaSp=d.sp;render();return;}
+ if(d.s){view.nuovoStato=d.s;render();return;}
+ if(d.dd){const v=parseFloat(String($("#dIn").value).replace(",","."))||0;view.nuovoD=Math.max(5,Math.round(v+(+d.dd)));render();return;}
+ if(d.cm){view.coordMode=d.cm;render();return;}
+ if(d.askp){view.confirm="p"+d.askp;render();return;}
+ if(d.delp){const a=curArea();a.piante=a.piante.filter(p=>p.id!==d.delp);view.confirm=null;mark(view.id);render();toast("Pianta eliminata");return;}
+ if(d.askt){view.confirm="t"+d.askt;render();return;}
+ if(d.delt){const a=curArea();a.punti=a.punti.filter(p=>p.id!==d.delt);view.confirm=null;mark(view.id);render();toast("Punto eliminato");return;}
+ if(d.exp){esporta(d.exp);return;}
+ const act=d.act;if(!act)return;
+ if(act==="gpsStart"){gpsStart();return;}if(act==="gpsStop"){gpsStop();return;}if(act==="gpsUsa"){gpsUsa();return;}
+ if(act==="nuovaArea")nuovaArea();else if(act==="addPianta")addPianta();else if(act==="addPunto")addPunto();
+ else if(act==="askDelArea"){view.confirm="area";render();}
+ else if(act==="noConfirm"){view.confirm=null;render();}
+ else if(act==="delArea"){const id=view.id;delete S.aree[id];view={...view,name:"aree",id:null,confirm:null};mark(id);render();toast("Area eliminata");}});
+
+document.addEventListener("input",e=>{const t=e.target;
+ if(t.dataset.f){const a=curArea();if(!a)return;a[t.dataset.f]=t.value;mark(view.id);
+  if(t.dataset.f==="forma"||t.dataset.f==="raggio"||t.dataset.f==="superficie"){const el=$("#app .panel p.muted .mono");if(el)el.textContent=fmt(supArea(a),0)+" m²";}
+  if(t.tagName==="SELECT")render();return;}
+ if(t.dataset.pf){S.progetto[t.dataset.pf]=t.value;mark("__progetto");$("#hdrSub").textContent=[S.progetto.comune,S.progetto.localita].filter(Boolean).join(" · ");return;}
+ if(t.id==="spSel"){view.nuovaSp=t.value;render();return;}
+ if(t.id==="dIn"){view.nuovoD=t.value;return;}
+ if(["cE","cN","cLL","cQ","cNote"].includes(t.id)){view[t.id]=t.value;if(t.id==="cE"||t.id==="cN"||t.id==="cLL")view.cAcc=null;if(t.id!=="cQ"&&t.id!=="cNote"){clearTimeout(view._ct);view._ct=setTimeout(render,350);}return;}
+ if(t.id==="ptTipo"){view.ptTipo=t.value;}});
+document.addEventListener("keydown",e=>{if(e.key==="Enter"&&(e.target.id==="dIn"||e.target.id==="hIn"||e.target.id==="nIn")){e.preventDefault();addPianta();}});
+
+render();initDb();
+</script>
+
+</body>
+</html>
