@@ -93,6 +93,8 @@ td.n,th.n{text-align:right;font-family:var(--f-mono);font-variant-numeric:tabula
 .gpsbox{display:flex;flex-direction:column;gap:8px;padding-bottom:10px;border-bottom:1px solid var(--line)}
 .btnlike{display:inline-flex;align-items:center;justify-content:center;font-size:1rem;font-weight:600;color:var(--ink);letter-spacing:0;border-radius:10px;border:1.5px solid var(--line);background:var(--surface);padding:10px 14px;min-height:46px;cursor:pointer;flex:1 1 140px}
 .btnlike:focus-within{outline:3px solid var(--paint);outline-offset:1px}
+.wrapt td,.wrapt th{white-space:normal}
+.wrapt td.n{white-space:nowrap}
 .coordbox{display:flex;flex-direction:column;gap:10px;border:1.5px dashed var(--line);border-radius:10px;padding:12px}
 .pt{display:flex;gap:10px;align-items:center;justify-content:space-between;border-bottom:1px solid var(--line);padding-block:8px;flex-wrap:wrap}
 .pt:last-child{border-bottom:0}
@@ -154,12 +156,13 @@ const SPECIE=["Castagno","Robinia","Rovere","Farnia","Roverella","Cerro","Carpin
 const SPORADICHE=new Set(["Acero campestre","Acero di monte","Frassino maggiore","Ciliegio selvatico","Tiglio","Olmo campestre","Sorbo"]);
 const ESOTICHE=new Set(["Quercia rossa","Ciliegio tardivo","Ailanto","Acero americano"]);
 const STATI={taglio:"Taglio",resta:"Non segnata",allievo:"Allievo",bio:"Biodiversità"};
-const PUNTI=["Centro area","Vertice","Albero biodiversità","Imposto","Accesso","Altro"];
+const PUNTI=["Centro area","Vertice","Albero biodiversità","Albero morto (invecchiamento)","Imposto","Accesso","Altro"];
+const TUTELE={"":"Nessuna","area_protetta":"Area protetta (l.r. 19/2009)","natura2000":"Sito Natura 2000"};
 
 /* ---------- Stato ---------- */
 const LS="contrassegnatura-v2",LS_OLD="contrassegnatura-v1";
 const oggi=()=>new Date().toISOString().slice(0,10);
-const nuovoCantiere=(o={})=>Object.assign({nome:"",comune:"",localita:"",data:oggi(),supHa:"",rilevatore:"",tecnico:"",vernice:"Arancio",criterio:"Diradamento dal basso",fForma:0.5,densita:9,creato:new Date().toISOString()},o);
+const nuovoCantiere=(o={})=>Object.assign({nome:"",comune:"",localita:"",data:oggi(),supHa:"",rilevatore:"",tecnico:"",vernice:"Arancio",criterio:"Diradamento dal basso",tutela:"",nomeTutela:"",fForma:0.5,densita:9,creato:new Date().toISOString()},o);
 let S={cantieri:{},aree:{},attivo:null,ultimoBackup:null};
 let view={name:"aree",id:null,tab:"piante",nuovaSp:"Castagno",nuovoStato:"taglio",nuovoD:20,confirm:null};
 let db=null,dl=null,dirty=new Set(),saving=new Set(),online=false,persistito=null;
@@ -173,7 +176,7 @@ try{const raw=localStorage.getItem(LS);
   if(o&&o.aree&&Object.keys(o.aree).length){const prima=new Set(Object.keys(S.aree));const cid=migraVecchio(o);dirty.add("c:"+cid);Object.keys(S.aree).filter(id=>!prima.has(id)).forEach(id=>dirty.add(id));}
   localStorage.setItem(LS+"-migrato","1");}}catch(e){}
 function ensureAttivo(){if(S.cantieri[S.attivo])return;const ids=Object.keys(S.cantieri).sort((a,b)=>(S.cantieri[b].data||"").localeCompare(S.cantieri[a].data||""));
- if(ids.length){S.attivo=ids[0];return;}const cid="c"+uidSafe();S.cantieri[cid]=nuovoCantiere({nome:"Rosta – diradamento",comune:"Rosta (TO)",supHa:4.9});S.attivo=cid;dirty.add("c:"+cid);}
+ if(ids.length){S.attivo=ids[0];return;}const cid="c"+uidSafe();S.cantieri[cid]=nuovoCantiere({nome:"Rosta – Sant'Antonio di Ranverso",comune:"Rosta (TO)",localita:"Sant'Antonio di Ranverso",supHa:2.1,criterio:"Diradamento del robinieto, rilascio autoctone",tutela:"area_protetta",nomeTutela:"ZNS Dora Riparia"});S.attivo=cid;dirty.add("c:"+cid);}
 function uidSafe(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6);}
 const P=()=>{ensureAttivo();return S.cantieri[S.attivo];};
 const areeDi=cid=>Object.keys(S.aree).filter(id=>S.aree[id].cantiere===cid).sort((a,b)=>(S.aree[a].creata||"").localeCompare(S.aree[b].creata||""));
@@ -200,9 +203,11 @@ function calc(a){const sup=supArea(a),k=sup>0?10000/sup:NaN,P=a.piante||[];
 function avvisi(a,c){const out=[];const cat=(a.categoria||"").toLowerCase();
  const minCop=(cat.includes("robin")||cat.includes("castagn"))?50:50;
  if(+a.copDopo>0&&+a.copDopo<minCop)out.push({bad:1,t:`Copertura a fine intervento ${a.copDopo}%: deve restare almeno al 50% (art. 22)${minCop>50?"":""}.`});
- if((cat.includes("robin")||cat.includes("castagn"))&&+a.copDopo===50)out.push({bad:1,t:"Nei robinieti e castagneti la copertura residua deve essere superiore al 50% (art. 55)."});
+ if((cat.includes("robin")||cat.includes("castagn"))&&+a.copDopo===50)out.push({bad:1,t:"Nei robinieti e castagneti la copertura a fine diradamento deve essere superiore al 50% (art. 55, c. 5)."});
  for(const [s,v] of Object.entries(c.sp)){if(SPORADICHE.has(s)&&v.nt>0&&c.k&&v.n*c.k<20)out.push({bad:1,t:`${s} è sporadica con meno di 20 piante/ha: va rilasciata (art. 42). Ci sono ${v.nt} piante segnate al taglio.`});
-  if(ESOTICHE.has(s)&&v.n>v.nt)out.push({t:`${s} è esotica invasiva: valutare il taglio delle piante non segnate (art. 42 ter).`});}
+  const cant=S.cantieri[a.cantiere]||{};
+  if(cant.tutela&&!/robin|castagn/.test(cat)&&s!=="Robinia"&&ESOTICHE.has(s)&&v.n>v.nt)out.push({bad:1,t:`${s}: in area protetta le esotiche infestanti vanno contrastate a ogni taglio (art. 30).`});
+  else if(ESOTICHE.has(s)&&v.n>v.nt)out.push({t:`${s} è esotica invasiva: valutare il taglio delle piante non segnate (art. 42 ter).`});}
  if(c.pctG>40)out.push({t:`Prelievo del ${fmt(c.pctG,0)}% dell'area basimetrica: diradamento forte, verificare la stabilità del popolamento.`});
  if(c.sup>0&&c.sup<500)out.push({t:"Area campione sotto i 500 m²: poco rappresentativa per un diradamento."});
  if(!a.punti||!a.punti.some(p=>p.tipo==="Centro area"))out.push({t:"Manca il punto del centro area: inseriscilo nella scheda Punti."});
@@ -383,11 +388,37 @@ function rRiepilogo(){const ids=areeDi(S.attivo);const p=P();
   ${spr.slice(0,3).map(([s,g],i)=>`<tr><td>${i===0?"Specie principale":i===1?"Specie secondaria":"Altre specie"}: ${esc(s)}</td><td class="n">${fmt(gtot?Vt*g/gtot:0,0)} m³</td></tr>`).join("")}
   </tbody></table></div>
   ${ha>=5?`<div class="note bad">Superficie di ${fmt(ha,2)} ha: la comunicazione semplice vale solo sotto i 5 ha.</div>`:""}
-  <p class="muted" style="margin:0">Volumi ripartiti per specie in proporzione all'area basimetrica prelevata. Correggi densità e coefficiente di forma in Dati cantiere.</p></section>
+  <p class="muted" style="margin:0">Volumi ripartiti per specie in proporzione all'area basimetrica prelevata. Correggi densità e coefficiente di forma in Dati cantiere.</p>
+  ${cs.some(x=>/robin|castagn/i.test(x.a.categoria||""))?`<p class="muted" style="margin:0">Robinieto: l'assegno al taglio non si applica a robinie e castagni (art. 55, c. 6); copertura a fine diradamento oltre il 50%.</p>`:""}</section>
+  ${rTutela(p,ids,ha)}
   <section class="panel"><h3>Esporta</h3>
   <div class="row"><button class="primary" data-exp="piante">Piante (CSV)</button><button class="primary" data-exp="aree">Aree e punti (CSV)</button></div>
   <p class="muted" style="margin:0">CSV con separatore punto e virgola, si apre in Excel o QGIS (coordinate in EPSG:32632).</p></section>`;}
 
+function inSospensione(d=new Date()){const m=d.getMonth()+1,g=d.getDate();return (m===4||m===5)||(m===6&&g<=15);}
+function rTutela(p,ids,ha){if(!p.tutela)return"";
+ const req=ha>0?Math.ceil(ha*10000/2500):0;let viv=0,mor=0,bioP=0;
+ ids.forEach(id=>{const a=S.aree[id];(a.punti||[]).forEach(pt=>{if(pt.tipo==="Albero biodiversità")viv++;if(pt.tipo==="Albero morto (invecchiamento)")mor++;});(a.piante||[]).forEach(x=>{if(x.stato==="bio")bioP++;});});
+ const st=(n,r)=>n>=r?`<span class="okline">${n} / ${r}</span>`:`<span style="color:var(--bad);font-weight:600">${n} / ${r}</span>`;
+ if(p.tutela==="natura2000")return`<section class="panel"><h3>Sito Natura 2000${p.nomeTutela?" · "+esc(p.nomeTutela):""}</h3>
+  <div class="note bad">Oltre 0,5 ha per proprietà e per anno la procedura dipende dal piano forestale e dalle misure di conservazione, con possibile valutazione di incidenza (art. 7, c. 2). Verifica con il Settore Tecnico prima di presentare.</div>
+  <p class="muted" style="margin:0">Valgono anche le misure di conservazione del sito e la sospensione dal 1 aprile al 15 giugno.</p></section>`;
+ return`<section class="panel"><h3>Area protetta${p.nomeTutela?" · "+esc(p.nomeTutela):""}</h3>
+  <p class="muted" style="margin:0">Senza piano forestale basta la comunicazione semplice solo se si rispettano le misure dell'art. 30, c. 2; altrimenti serve l'autorizzazione con progetto (art. 7, c. 3).</p>
+  ${inSospensione()?`<div class="note bad">Oggi siamo nel periodo di sospensione (1 aprile – 15 giugno): nessun intervento, esbosco compreso.</div>`:`<div class="note">Sospensione dal 1 aprile al 15 giugno, esbosco compreso. Periodo consigliato per un robinieto: 1 ottobre – 31 marzo.</div>`}
+  <div class="scroll"><table class="wrapt"><thead><tr><th>Alberi a invecchiamento indefinito</th><th class="n">Registrati / richiesti</th></tr></thead><tbody>
+  <tr><td>Alberi maturi autoctoni (punti "Albero biodiversità")</td><td class="n">${req?st(viv,req):"–"}</td></tr>
+  <tr><td>Alberi morti di grandi dimensioni, se presenti</td><td class="n">${req?st(mor,req):"–"}</td></tr>
+  <tr><td>Piante segnate Biodiversità nelle aree campione</td><td class="n">${bioP}</td></tr></tbody></table></div>
+  <p class="muted" style="margin:0">${req?`Su ${fmt(ha,2)} ha: 1 maturo e 1 morto ogni 2.500 m² = ${req} + ${req}, preferendo piante con cavità (art. 30, c. 2, lett. h). Registra ogni albero come punto nella scheda Punti di un'area.`:"Inserisci la superficie di intervento in Dati cantiere."}</p>
+  <h3 style="margin-top:4px">Da rispettare in cantiere</h3>
+  <ul style="margin:0;padding-left:20px;display:flex;flex-direction:column;gap:4px">
+   <li>Rilasciare almeno il 50% della copertura di arbusti autoctoni; tutta se è sotto il 10% (lett. i).</li>
+   <li>Almeno 1 albero dominante con edera per ettaro, se presente (lett. i).</li>
+   <li>Lasciare in bosco almeno il 50% di ramaglie e cimali, sparsi o in cumuli fino a 3 steri (lett. l).</li>
+   <li>Rispettare nidi, tane, specchi d'acqua, ecotoni e flora protetta (lett. m).</li>
+   <li>Robinieti: tagliata massima 5 ha (lett. c); tutte le specie autoctone restano nel bosco (art. 55).</li>
+  </ul></section>`;}
 function rProgetto(){const p=P();const f=(k,l,ph="",im="")=>`<label for="p_${k}">${l}<input id="p_${k}" data-pf="${k}" value="${esc(p[k]??"")}" placeholder="${ph}" ${im?`inputmode="${im}"`:""}></label>`;
  const na=areeDi(S.attivo).length;
  return`<section class="panel"><h3>Dati cantiere</h3>
@@ -396,6 +427,8 @@ function rProgetto(){const p=P();const f=(k,l,ph="",im="")=>`<label for="p_${k}"
   <div class="row">${f("supHa","Superficie intervento (ha)","4,9","decimal")}${f("vernice","Colore vernice","Arancio")}</div>
   <div class="row">${f("rilevatore","Rilevatore")}${f("tecnico","Tecnico forestale abilitato")}</div>
   ${f("criterio","Criterio di diradamento","Diradamento dal basso")}
+  <div class="row"><label for="p_tutela">Tutela<select id="p_tutela" data-pf="tutela">${Object.entries(TUTELE).map(([k,l])=>`<option value="${k}" ${k===(p.tutela||"")?"selected":""}>${l}</option>`).join("")}</select></label>
+   ${f("nomeTutela","Nome area tutelata","es. ZNS Dora Riparia")}</div>
   <div class="row">${f("fForma","Coefficiente di forma","0,5","decimal")}${f("densita","Densità legna fresca (q/m³)","9","decimal")}</div>
   <p class="muted" style="margin:0">Il contrassegno si fa con anello di vernice a 1,30 m sul lato a monte e punto al piede sul lato a valle. Le aree campione fanno da modello per tutta la tagliata.</p></section>
   <section class="panel"><h3>Elimina cantiere</h3>
@@ -512,7 +545,7 @@ document.addEventListener("input",e=>{const t=e.target;
  if(t.dataset.f){const a=curArea();if(!a)return;a[t.dataset.f]=t.value;mark(view.id);
   if(t.dataset.f==="forma"||t.dataset.f==="raggio"||t.dataset.f==="superficie"){const el=$("#app .panel p.muted .mono");if(el)el.textContent=fmt(supArea(a),0)+" m²";}
   if(t.tagName==="SELECT")render();return;}
- if(t.dataset.pf){const p=P();p[t.dataset.pf]=t.value;mark("c:"+S.attivo);$("#hdrSub").textContent=p.nome||[p.comune,p.localita].filter(Boolean).join(" · ");return;}
+ if(t.dataset.pf){const p=P();p[t.dataset.pf]=t.value;mark("c:"+S.attivo);if(t.tagName==="SELECT"){render();return;}$("#hdrSub").textContent=p.nome||[p.comune,p.localita].filter(Boolean).join(" · ");return;}
  if(t.id==="spSel"){view.nuovaSp=t.value;render();return;}
  if(t.id==="dIn"){view.nuovoD=t.value;return;}
  if(["cE","cN","cLL","cQ","cNote"].includes(t.id)){view[t.id]=t.value;if(t.id==="cE"||t.id==="cN"||t.id==="cLL")view.cAcc=null;if(t.id!=="cQ"&&t.id!=="cNote"){clearTimeout(view._ct);view._ct=setTimeout(render,350);}return;}
