@@ -114,6 +114,16 @@ a{color:var(--forest)}
 .big{font-family:var(--f-mono);font-size:1.6rem;font-variant-numeric:tabular-nums;text-align:center}
 .stepper{display:grid;grid-template-columns:56px 1fr 56px;gap:6px}
 .stepper button{font-size:1.4rem;padding:0}
+.clgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.clgrid button{min-height:58px;font-family:var(--f-mono);font-size:1.3rem;font-variant-numeric:tabular-nums;padding:4px}
+.clgrid button small{display:block;font-family:var(--f-body);font-size:.66rem;font-weight:500;color:var(--muted)}
+.tag{font-family:var(--f-mono);font-size:.75rem;color:var(--muted);border:1px solid var(--line);border-radius:6px;padding:0 5px;margin-left:4px}
+.tag.bad{color:var(--bad);border-color:var(--bad)}
+.chart{overflow-x:auto}
+.chart svg text{font-family:var(--f-mono)}
+.formula{font-family:var(--f-mono);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-size:.92rem;overflow-x:auto}
+.guida p{margin:0}
+.guida ul{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:4px}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 </style>
 
@@ -164,7 +174,8 @@ const LS="contrassegnatura-v2",LS_OLD="contrassegnatura-v1";
 const oggi=()=>new Date().toISOString().slice(0,10);
 const nuovoCantiere=(o={})=>Object.assign({nome:"",comune:"",localita:"",data:oggi(),supHa:"",rilevatore:"",tecnico:"",vernice:"Arancio",criterio:"Diradamento dal basso",tutela:"",nomeTutela:"",fForma:0.5,densita:9,creato:new Date().toISOString()},o);
 let S={cantieri:{},aree:{},attivo:null,ultimoBackup:null};
-let view={name:"aree",id:null,tab:"piante",nuovaSp:"Castagno",nuovoStato:"taglio",nuovoD:20,confirm:null};
+let view={name:"aree",id:null,tab:"piante",nuovaSp:"Castagno",nuovoStato:"taglio",nuovoD:20,confirm:null,modoD:"esatto",nuovaCep:""};
+const num=v=>parseFloat(String(v??"").replace(",","."));
 let db=null,dl=null,dirty=new Set(),saving=new Set(),online=false,persistito=null;
 function migraVecchio(o){/* formato v1: un solo cantiere in "progetto" */
  const cid="c"+Date.now().toString(36);S.cantieri[cid]=nuovoCantiere(Object.assign({nome:(o.progetto&&o.progetto.comune)||"Primo cantiere"},o.progetto||{}));
@@ -192,14 +203,60 @@ function setSync(){const el=$("#sync");if(!db){el.textContent=navigator.onLine==
 
 /* ---------- Calcoli ---------- */
 function supArea(a){if(a.forma==="cerchio")return Math.PI*(+a.raggio||0)**2;return +a.superficie||0;}
-function calc(a){const sup=supArea(a),k=sup>0?10000/sup:NaN,P=a.piante||[];
- const g=d=>Math.PI*((+d||0)/200)**2;let N=0,G=0,Nt=0,Gt=0,Nr=0,Nb=0,hs=[];const sp={};
- for(const p of P){const gi=g(p.d);N++;G+=gi;if(p.stato==="taglio"){Nt++;Gt+=gi;}if(p.stato==="allievo")Nr++;if(p.stato==="bio")Nb++;
-  if(+p.h>0)hs.push(+p.h);const s=sp[p.specie]||(sp[p.specie]={n:0,g:0,nt:0,gt:0});s.n++;s.g+=gi;if(p.stato==="taglio"){s.nt++;s.gt+=gi;}}
- const H=+a.hMedia>0?+a.hMedia:(hs.length?hs.reduce((x,y)=>x+y,0)/hs.length:NaN);
- const f=+((S.cantieri[a.cantiere]||P()).fForma)||0.5;
- return{sup,k,N,G,Nt,Gt,Nr,Nb,H,sp,Nha:N*k,Gha:G*k,Ntha:Nt*k,Gtha:Gt*k,Gpost:(G-Gt)*k,pctN:N?Nt/N*100:0,pctG:G?Gt/G*100:0,
-  Vtha:Gt*k*H*f,Vha:G*k*H*f};}
+/* Classe diametrica di 5 cm indicata dal valore centrale: 10 = 7,5–12,4 cm */
+const CL=d=>5*Math.round((+d||0)/5);
+const gOf=d=>Math.PI*((+d||0)/200)**2;
+const SOGLIA_CEDUO=7.5,SOGLIA_FUSTAIA=17.5;
+const isCeduo=s=>/cedu|robin|castagn/i.test(s||"");
+/* Curva ipsometrica h = a + b·ln(d), minimi quadrati sulle altezze misurate */
+function curvaH(PL){const pts=PL.filter(p=>+p.h>0&&+p.d>0).map(p=>[Math.log(+p.d),+p.h]);
+ if(pts.length<3)return null;const n=pts.length,mx=pts.reduce((s,x)=>s+x[0],0)/n,my=pts.reduce((s,x)=>s+x[1],0)/n;
+ let sxx=0,sxy=0,syy=0;for(const [x,y] of pts){sxx+=(x-mx)**2;sxy+=(x-mx)*(y-my);syy+=(y-my)**2;}
+ if(sxx<1e-4)return{n,ko:"Le altezze misurate sono tutte sulla stessa classe: misurane su diametri diversi."};
+ const b=sxy/sxx,a=my-b*mx,r2=syy>0?sxy*sxy/(sxx*syy):0;
+ if(b<=0)return{n,ko:"Con le altezze misurate l'altezza non cresce con il diametro: controlla i dati o aggiungi misure."};
+ return{a,b,r2,n};}
+function tipoDir(pre,post,nt){if(!nt||!isFinite(pre)||!isFinite(post))return null;const r=post/pre,t=`dg da ${fmt(pre)} a ${fmt(post)} cm`;
+ if(r>1.02)return{k:"basso",t:`Diradamento dal basso: ${t}. Si tolgono soprattutto piante piccole e sottoposte.`};
+ if(r<0.98)return{k:"alto",bad:1,t:`Diradamento dall'alto: ${t}. Si stanno togliendo le piante più grosse: verifica che non sia un taglio delle migliori.`};
+ return{k:"misto",t:`Diradamento misto: ${t}, quasi invariato. Il prelievo interessa tutte le classi.`};}
+function struttura(cl,N){const ks=Object.keys(cl).map(Number).sort((a,b)=>a-b);
+ if(N<15||ks.length<3)return{k:null,t:"Servono almeno 15 piante su 3 classi per leggere la struttura."};
+ const c=[];for(let x=ks[0];x<=ks[ks.length-1];x+=5){const o=cl[x];c.push(o?(o.taglio||0)+(o.resta||0)+(o.allievo||0)+(o.bio||0):0);}
+ const s=c.map((v,i)=>(2*v+(c[i-1]??v)+(c[i+1]??v))/4),mx=Math.max(...s);const pk=[];
+ s.forEach((v,i)=>{if(v>=mx*0.25&&(i===0||v>=s[i-1])&&(i===s.length-1||v>s[i+1]))pk.push(i);});
+ for(let j=1;j<pk.length;j++){const v=Math.min(...s.slice(pk[j-1],pk[j]+1));if(v<0.7*Math.min(s[pk[j-1]],s[pk[j]]))return{k:"bimodale",t:"Distribuzione bimodale: due generazioni o due strati, per esempio ceduo con matricine o ceduo sotto fustaia."};}
+ if(s.indexOf(mx)===0&&s[s.length-1]<mx*0.5)return{k:"J",t:"Distribuzione a J rovesciata: molte piante piccole e poche grandi. Popolamento disetaneo, oppure ceduo giovane e affollato."};
+ return{k:"campana",t:"Distribuzione a campana: popolamento coetaneo o monoplano, tipica del ceduo e della fustaia coetanea."};}
+function calc(a){const sup=supArea(a),k=sup>0?10000/sup:NaN,PL=a.piante||[];
+ const cant=S.cantieri[a.cantiere]||P(),f=num(cant.fForma)||0.5;
+ const hs=PL.filter(p=>+p.h>0).map(p=>+p.h);
+ const Hc=num(a.hMedia)>0?num(a.hMedia):(hs.length?hs.reduce((x,y)=>x+y,0)/hs.length:NaN);
+ const cur=curvaH(PL),ok=cur&&!cur.ko;
+ const hD=d=>ok?Math.max(1.3,cur.a+cur.b*Math.log(d)):Hc;
+ const hOf=p=>+p.h>0?+p.h:hD(+p.d);
+ let N=0,G=0,Nt=0,Gt=0,Nr=0,Nb=0,V=0,Vt=0,sd=0,sdt=0,nCep=0;const sp={},cl={},snell=[],fuori=[],cep=new Set();
+ PL.forEach((p,i)=>{const d=+p.d,gi=gOf(d),hi=hOf(p),vi=gi*hi*f,t=p.stato==="taglio";
+  N++;G+=gi;sd+=d;if(isFinite(vi))V+=vi;
+  if(t){Nt++;Gt+=gi;sdt+=d;if(isFinite(vi))Vt+=vi;}
+  if(p.stato==="allievo")Nr++;if(p.stato==="bio")Nb++;
+  const s=sp[p.specie]||(sp[p.specie]={n:0,g:0,nt:0,gt:0});s.n++;s.g+=gi;if(t){s.nt++;s.gt+=gi;}
+  const c=CL(d),o=cl[c]||(cl[c]={taglio:0,resta:0,allievo:0,bio:0,g:0,gt:0,v:0,vt:0});
+  o[p.stato]=(o[p.stato]||0)+1;o.g+=gi;if(isFinite(vi))o.v+=vi;if(t){o.gt+=gi;if(isFinite(vi))o.vt+=vi;}
+  if(!t&&isFinite(hi)&&d>0)snell.push({i:i+1,stato:p.stato,specie:p.specie,d,h:hi,hd:hi/(d/100),mis:+p.h>0});
+  if(p.cep!=null&&String(p.cep).trim()!==""){cep.add(String(p.cep).trim());nCep++;}
+  if(a.forma==="cerchio"&&+p.dist>0&&+p.dist>num(a.raggio))fuori.push(i+1);});
+ const dg=(g,n)=>n?Math.sqrt(4*g/(Math.PI*n))*100:NaN;
+ const nDom=isFinite(k)?Math.max(1,Math.round(100/k)):0;
+ const dom=PL.slice().sort((x,y)=>(+y.d)-(+x.d)).slice(0,nDom),hv=dom.map(hOf).filter(isFinite);
+ const hDom=dom.length&&hv.length===dom.length?hv.reduce((s,x)=>s+x,0)/hv.length:NaN;
+ const dgPre=dg(G,N),dgPost=dg(G-Gt,N-Nt);
+ return{sup,k,N,G,Nt,Gt,Nr,Nb,H:Hc,cur,f,hOf,hD,sp,cl,snell,fuori,
+  Nha:N*k,Gha:G*k,Ntha:Nt*k,Gtha:Gt*k,Gpost:(G-Gt)*k,pctN:N?Nt/N*100:0,pctG:G?Gt/G*100:0,
+  Vha:V>0?V*k:NaN,Vtha:V>0?Vt*k:NaN,pctV:V>0?Vt/V*100:NaN,
+  dgPre,dgT:dg(Gt,Nt),dgPost,dmPre:N?sd/N:NaN,dmT:Nt?sdt/Nt:NaN,dmPost:N-Nt?(sd-sdt)/(N-Nt):NaN,
+  hDom,hDomMis:dom.length>0&&dom.every(p=>+p.h>0),nDom,nCep:cep.size,polCep:cep.size?nCep/cep.size:NaN,Cepha:cep.size*k,
+  tipo:tipoDir(dgPre,dgPost,Nt),strut:struttura(cl,N)};}
 function avvisi(a,c){const out=[];const cat=(a.categoria||"").toLowerCase();
  const minCop=(cat.includes("robin")||cat.includes("castagn"))?50:50;
  if(+a.copDopo>0&&+a.copDopo<minCop)out.push({bad:1,t:`Copertura a fine intervento ${a.copDopo}%: deve restare almeno al 50% (art. 22)${minCop>50?"":""}.`});
@@ -211,6 +268,14 @@ function avvisi(a,c){const out=[];const cat=(a.categoria||"").toLowerCase();
  if(c.pctG>40)out.push({t:`Prelievo del ${fmt(c.pctG,0)}% dell'area basimetrica: diradamento forte, verificare la stabilità del popolamento.`});
  if(c.sup>0&&c.sup<500)out.push({t:"Area campione sotto i 500 m²: poco rappresentativa per un diradamento."});
  if(!a.punti||!a.punti.some(p=>p.tipo==="Centro area"))out.push({t:"Manca il punto del centro area: inseriscilo nella scheda Punti."});
+ if(c.tipo&&c.tipo.bad)out.push({bad:1,t:c.tipo.t});
+ const sA=c.snell.filter(x=>x.stato==="allievo"&&x.hd>100);
+ if(sA.length)out.push({bad:1,t:`Allievi molto snelli (h/d oltre 100): piante n. ${sA.map(x=>x.i).join(", ")}. Rischio di schianto o di piegarsi dopo il diradamento: valuta un rilascio graduale o un altro allievo.`});
+ const s8=c.snell.filter(x=>x.hd>80&&!(x.stato==="allievo"&&x.hd>100));
+ if(s8.length)out.push({t:`${s8.length} piante rilasciate con h/d sopra 80: sono instabili, non isolarle troppo.`});
+ if(c.fuori.length)out.push({bad:1,t:`Piante oltre il raggio dell'area (distanza dal centro > ${fmt(num(a.raggio),2)} m): n. ${c.fuori.join(", ")}. Vanno escluse.`});
+ const sg=num(a.soglia);if(isCeduo(a.governo+" "+a.categoria)&&sg>SOGLIA_CEDUO)out.push({t:`Soglia di cavallettamento a ${fmt(sg)} cm in un ceduo: con 7,5 cm (dalla classe 10) non si escludono i polloni piccoli.`});
+ if(c.cur&&c.cur.ko)out.push({t:c.cur.ko});
  return out;}
 
 /* ---------- Persistenza db ---------- */
@@ -251,12 +316,13 @@ async function initDb(){if(!window.claude||!claude.use){setSync();return;}
 function render(){const ae=document.activeElement,fid=ae&&ae.id,pos=ae&&ae.selectionStart;
  const app=$("#app");const p=P();
  $("#hdrSub").textContent=p.nome||[p.comune,p.localita].filter(Boolean).join(" · ")||"Cantiere senza nome";
- let h=`<nav class="tabs">${[["archivio","Cantieri"],["aree","Aree"],["riepilogo","Riepilogo"],["progetto","Dati"]].map(([k,t])=>
+ let h=`<nav class="tabs">${[["archivio","Cantieri"],["aree","Aree"],["riepilogo","Riepilogo"],["progetto","Dati"],["guida","Guida"]].map(([k,t])=>
    `<button data-go="${k}" class="${view.name===k||(view.name==="area"&&k==="aree")?"sel":""}">${t}</button>`).join("")}</nav>`;
  if(view.name==="area"&&S.aree[view.id])h+=rArea(S.aree[view.id]);
  else if(view.name==="riepilogo")h+=rRiepilogo();
  else if(view.name==="progetto")h+=rProgetto();
  else if(view.name==="archivio")h+=rArchivio();
+ else if(view.name==="guida")h+=rGuida();
  else h+=rAree();
  app.innerHTML=h;
  if(fid){const el=document.getElementById(fid);if(el){el.focus();try{if(pos!=null)el.setSelectionRange(pos,pos);}catch(e){}}}
@@ -284,22 +350,31 @@ function rArea(a){const c=calc(a),t=view.tab;
 
 function rPiante(a,c){const P=a.piante||[];
  const recenti=[...new Set(P.slice().reverse().map(p=>p.specie))].slice(0,6);const lista=[...new Set([...recenti,...SPECIE])];
+ const md=view.modoD||"esatto",sg=num(a.soglia)||0,c0=Math.max(5,5*Math.ceil((sg-2.4)/5)),classi=[];for(let x=c0;x<=c0+55;x+=5)classi.push(x);
+ const hd=p=>{const h=c.hOf(p);return isFinite(h)&&+p.d>0?h/(+p.d/100):NaN;};
  return`<section class="panel"><h3>Registra pianta n. ${P.length+1}</h3>
   <div class="chips">${lista.slice(0,12).map(s=>`<button data-sp="${esc(s)}" class="${view.nuovaSp===s?"sel":""}">${esc(s)}</button>`).join("")}</div>
   <label for="spSel">Altre specie<select id="spSel">${SPECIE.map(s=>`<option ${s===view.nuovaSp?"selected":""}>${esc(s)}</option>`).join("")}</select></label>
-  <label for="dIn">Diametro a 1,30 m (cm)</label>
+  <div class="seg" role="group" aria-label="Contrassegno">${Object.entries(STATI).map(([k,l])=>`<button data-s="${k}" class="${view.nuovoStato===k?"sel":""}">${l}</button>`).join("")}</div>
+  <div class="row"><label for="hIn">Altezza m (facolt.)<input id="hIn" inputmode="decimal" placeholder="es. 18" value="${esc(view.nuovoH||"")}"></label>
+   <label for="cepIn">Ceppaia n. (facolt.)<div class="row" style="gap:6px;flex-wrap:nowrap"><input id="cepIn" inputmode="numeric" placeholder="es. 3" value="${esc(view.nuovaCep||"")}" style="flex:1 1 60px;min-width:0"><button data-act="cepNext" style="flex:0 0 auto;padding:6px 10px" aria-label="Ceppaia successiva">+1</button></div></label>
+   <label for="distIn">Distanza dal centro m (facolt.)<input id="distIn" inputmode="decimal" placeholder="solo piante di confine" value="${esc(view.nuovaDist||"")}"></label>
+   <label for="nIn" style="flex:2 1 180px">Nota (facolt.)<input id="nIn" placeholder="es. doppia cima, nido" value="${esc(view.nuovaNota||"")}"></label></div>
+  <div class="seg" style="grid-template-columns:1fr 1fr" role="group" aria-label="Modo di inserimento del diametro"><button data-md="esatto" class="${md==="esatto"?"sel":""}">Diametro esatto</button><button data-md="classi" class="${md==="classi"?"sel":""}">Per classi di 5 cm</button></div>
+  ${md==="classi"?`<div class="clgrid" role="group" aria-label="Classi diametriche">${classi.map(x=>`<button data-cl="${x}">${x}<small>${fmt(x-2.5)}–${fmt(x+2.4)}</small></button>`).join("")}</div>
+   <p class="muted" style="margin:0">Tocca la classe letta sul cavalletto: la pianta viene registrata subito con specie, contrassegno e i dati facoltativi sopra. I calcoli usano il diametro centrale della classe.</p>`
+  :`<label for="dIn">Diametro a 1,30 m (cm)</label>
   <div class="stepper"><button data-dd="-5" aria-label="Meno 5 cm">−</button>
    <input id="dIn" class="big" inputmode="decimal" value="${esc(view.nuovoD)}" aria-label="Diametro in cm">
    <button data-dd="5" aria-label="Più 5 cm">+</button></div>
-  <div class="seg" role="group" aria-label="Contrassegno">${Object.entries(STATI).map(([k,l])=>`<button data-s="${k}" class="${view.nuovoStato===k?"sel":""}">${l}</button>`).join("")}</div>
-  <div class="row"><label for="hIn">Altezza m (facolt.)<input id="hIn" inputmode="decimal" placeholder="es. 18"></label>
-   <label for="nIn" style="flex:2 1 180px">Nota (facolt.)<input id="nIn" placeholder="es. doppia cima, nido"></label></div>
-  <button class="primary" data-act="addPianta" style="min-height:54px;font-size:1.05rem">Aggiungi pianta</button>
-  <p class="muted" style="margin:0">Registra tutte le piante dell'area sopra la soglia di cavallettamento, anche quelle non segnate: servono per l'area basimetrica prima e dopo.</p></section>
+  <label for="d2In">Seconda lettura incrociata cm (fusti ovali, facolt.)<input id="d2In" inputmode="decimal" placeholder="l'app usa la media delle due"></label>
+  <button class="primary" data-act="addPianta" style="min-height:54px;font-size:1.05rem">Aggiungi pianta</button>`}
+  <p class="muted" style="margin:0">Registra tutte le piante dell'area sopra la soglia di ${fmt(sg)} cm, anche quelle non segnate: servono per l'area basimetrica prima e dopo. Nel ceduo ogni pollone è una pianta: indica la ceppaia per contarle.</p></section>
   <section class="panel"><div class="row" style="justify-content:space-between;align-items:baseline"><h3>Piante registrate (${P.length})</h3>
    <span class="muted"><span class="dot d-taglio"></span>${c.Nt} taglio · <span class="dot d-allievo"></span>${c.Nr} allievi · <span class="dot d-bio"></span>${c.Nb} biod.</span></div>
   ${P.length?`<div class="trees">${P.map((p,i)=>i).reverse().map(i=>{const p=P[i];const conf=view.confirm==="p"+p.id;
-   return`<div class="tr"><span class="i">${i+1}</span><span class="dot d-${p.stato}"></span><span class="sp">${esc(p.specie)}${p.note?` <span class="muted">· ${esc(p.note)}</span>`:""}</span>
+   const s=p.stato!=="taglio"?hd(p):NaN;
+   return`<div class="tr"><span class="i">${i+1}</span><span class="dot d-${p.stato}"></span><span class="sp">${esc(p.specie)}${p.cep?`<span class="tag">C${esc(p.cep)}</span>`:""}${s>80?`<span class="tag ${s>100?"bad":""}">h/d ${fmt(s,0)}</span>`:""}${p.note?` <span class="muted">· ${esc(p.note)}</span>`:""}</span>
    <span class="dm">${fmt(+p.d,0)} cm</span>${conf?`<button class="danger" data-delp="${p.id}">Elimina</button>`:`<button class="ghost" data-askp="${p.id}" aria-label="Elimina pianta ${i+1}">✕</button>`}</div>`;}).join("")}</div>`
    :`<p class="muted" style="margin:0">Nessuna pianta ancora. Seleziona specie, diametro e contrassegno, poi tocca Aggiungi pianta.</p>`}</section>`;}
 
@@ -344,9 +419,9 @@ function rDati(a){const f=(id,l,v,ph="",im="")=>`<label for="${id}">${l}<input i
   <div class="row">${f("a_categoria","Categoria forestale",a.categoria,"es. Castagneto")}${f("a_tipo","Tipo forestale",a.tipo,"es. CA30X")}</div>
   <div class="row"><label for="a_governo">Forma di governo<select id="a_governo" data-f="governo">${["","Ceduo","Fustaia","Governo misto","Ceduo in conversione","Robinieto","Castagneto"].map(g=>`<option ${g===(a.governo||"")?"selected":""}>${g}</option>`).join("")}</select></label>
    ${f("a_eta","Età (anni)",a.eta,"","numeric")}</div>
-  <div class="row">${f("a_esposizione","Esposizione",a.esposizione,"es. NE")}${f("a_pendenza","Pendenza %",a.pendenza,"","decimal")}${f("a_hMedia","Altezza media m",a.hMedia,"","decimal")}</div>
+  <div class="row">${f("a_esposizione","Esposizione",a.esposizione,"es. NE")}${f("a_pendenza","Pendenza %",a.pendenza,"","decimal")}${f("a_hMedia","Altezza media m",a.hMedia,"se non misuri le altezze","decimal")}</div>
   <div class="row">${f("a_copPrima","Copertura prima %",a.copPrima,"","decimal")}${f("a_copDopo","Copertura dopo % (stima)",a.copDopo,"min 50","decimal")}</div>
-  <div class="row">${f("a_soglia","Soglia cavallettamento cm",a.soglia,"17,5","decimal")}${f("a_data","Data",a.data,"","")}</div>
+  <div class="row">${f("a_soglia","Soglia cavallettamento cm",a.soglia,"7,5 ceduo · 17,5 fustaia","decimal")}${f("a_data","Data",a.data,"","")}</div>
   <label for="a_note">Note<textarea id="a_note" data-f="note">${esc(a.note||"")}</textarea></label>
   ${view.confirm==="area"?`<div class="row"><button class="danger" data-act="delArea">Elimina definitivamente</button><button data-act="noConfirm">Annulla</button></div>`
    :`<button class="danger" data-act="askDelArea">Elimina area</button>`}</section>`;}
@@ -357,19 +432,95 @@ function rRisultati(a,c){const av=avvisi(a,c);
   <div class="scroll"><table><thead><tr><th></th><th class="n">Prima</th><th class="n">Prelievo</th><th class="n">Dopo</th><th class="n">% prel.</th></tr></thead><tbody>
   <tr><td>Piante / ha</td><td class="n">${fmt(c.Nha,0)}</td><td class="n">${fmt(c.Ntha,0)}</td><td class="n">${fmt(c.Nha-c.Ntha,0)}</td><td class="n">${fmt(c.pctN,0)}%</td></tr>
   <tr><td>Area basimetrica m²/ha</td><td class="n">${fmt(c.Gha)}</td><td class="n">${fmt(c.Gtha)}</td><td class="n">${fmt(c.Gpost)}</td><td class="n">${fmt(c.pctG,0)}%</td></tr>
-  <tr><td>Volume m³/ha (stima)</td><td class="n">${fmt(c.Vha,0)}</td><td class="n">${fmt(c.Vtha,0)}</td><td class="n">${fmt(c.Vha-c.Vtha,0)}</td><td class="n"></td></tr>
+  <tr><td>Volume m³/ha (stima)</td><td class="n">${fmt(c.Vha,0)}</td><td class="n">${fmt(c.Vtha,0)}</td><td class="n">${fmt(c.Vha-c.Vtha,0)}</td><td class="n">${isFinite(c.pctV)?fmt(c.pctV,0)+"%":""}</td></tr>
+  <tr><td>dg cm (diam. medio di G)</td><td class="n">${fmt(c.dgPre)}</td><td class="n">${fmt(c.dgT)}</td><td class="n">${fmt(c.dgPost)}</td><td class="n"></td></tr>
+  <tr><td>Diametro medio aritm. cm</td><td class="n">${fmt(c.dmPre)}</td><td class="n">${fmt(c.dmT)}</td><td class="n">${fmt(c.dmPost)}</td><td class="n"></td></tr>
   <tr><td>Copertura %</td><td class="n">${a.copPrima||"–"}</td><td class="n"></td><td class="n">${a.copDopo||"–"}</td><td class="n"></td></tr>
   </tbody></table></div>
-  <p class="muted" style="margin:0">Volume = G × altezza media (${isFinite(c.H)?fmt(c.H)+" m":"non inserita"}) × coefficiente di forma ${(S.cantieri[a.cantiere]||P()).fForma}. Stima speditiva, non tavola di cubatura.</p></section>
+  ${c.tipo?`<div class="${c.tipo.bad?"note bad":"okline"}">${esc(c.tipo.t)}</div>`:""}
+  ${c.Nt&&isFinite(c.pctN)?`<p class="muted" style="margin:0">Prelievo del ${fmt(c.pctN,0)}% delle piante e del ${fmt(c.pctG,0)}% dell'area basimetrica: ${c.pctN>c.pctG+3?"si tolgono più piante che area basimetrica, quindi piante sotto la media.":c.pctG>c.pctN+3?"si toglie più area basimetrica che piante, quindi piante sopra la media.":"piante di dimensione media."}</p>`:""}
+  <p class="muted" style="margin:0">Volume = Σ g × h × f, con h ${c.cur&&!c.cur.ko?"dalla curva ipsometrica (o misurata)":isFinite(c.H)?`= ${fmt(c.H)} m (altezza media)`:"non disponibile: misura qualche altezza"} e coefficiente di forma f = ${fmt(c.f,2)}. Stima speditiva, non tavola di cubatura.</p></section>
+  <section class="panel"><h3>Classi diametriche</h3>
+  ${c.N?rClassi(c.cl,c.k,c.hD)+`<div class="${c.strut.k?"okline":"muted"}" style="${c.strut.k?"color:var(--ink);font-weight:500":""}">${esc(c.strut.t)}</div>`:`<p class="muted" style="margin:0">Nessuna pianta registrata.</p>`}</section>
+  ${rAltezze(a,c)}
+  ${rSnellezza(c)}
+  ${c.nCep?`<section class="panel"><h3>Ceduo · ceppaie</h3><div class="kv"><div><b>${c.nCep}</b><span>ceppaie nell'area</span></div><div><b>${fmt(c.Cepha,0)}</b><span>ceppaie/ha</span></div><div><b>${fmt(c.polCep)}</b><span>polloni per ceppaia</span></div><div><b>${fmt(c.Nha,0)}</b><span>polloni/ha</span></div></div>
+   <p class="muted" style="margin:0">Calcolato sulle piante con numero di ceppaia. Nel diradamento del ceduo si rilasciano i polloni migliori di ogni ceppaia.</p></section>`:""}
   <section class="panel"><h3>Per specie</h3><div class="scroll"><table><thead><tr><th>Specie</th><th class="n">N</th><th class="n">N taglio</th><th class="n">G m²/ha</th><th class="n">G prel. m²/ha</th></tr></thead><tbody>
   ${rows.map(([s,v])=>`<tr><td>${esc(s)}</td><td class="n">${v.n}</td><td class="n">${v.nt}</td><td class="n">${fmt(v.g*c.k)}</td><td class="n">${fmt(v.gt*c.k)}</td></tr>`).join("")||`<tr><td colspan="5" class="muted">Nessuna pianta registrata</td></tr>`}
   </tbody></table></div></section>
   <section class="panel"><h3>Controlli regolamento</h3>${av.length?av.map(x=>`<div class="note ${x.bad?"bad":""}">${esc(x.t)}</div>`).join(""):`<div class="okline">Nessun problema rilevato sui dati inseriti.</div>`}</section>`;}
 
+/* Tabella e istogramma per classi: cl = conteggi per classe, k = fattore a ettaro, hD = altezza stimata per diametro (facolt.) */
+function rClassi(cl,k,hD){const ks=Object.keys(cl).map(Number).sort((a,b)=>a-b);if(!ks.length)return"";
+ const xs=[];for(let x=ks[0];x<=ks[ks.length-1];x+=5)xs.push(x);
+ const z={taglio:0,resta:0,allievo:0,bio:0,g:0,gt:0,v:0,vt:0},o=x=>cl[x]||z,tot=x=>(o(x).taglio+o(x).resta+o(x).allievo+o(x).bio);
+ const T={n:0,t:0,r:0,al:0,b:0,g:0,gt:0,v:0};
+ const rows=xs.map(x=>{const q=o(x),n=tot(x);T.n+=n;T.t+=q.taglio;T.r+=q.resta;T.al+=q.allievo;T.b+=q.bio;T.g+=q.g;T.gt+=q.gt;T.v+=q.v;
+  const h=hD?hD(x):NaN;
+  return`<tr><td class="n">${x}</td><td class="n">${fmt(n*k,0)}</td><td class="n">${fmt(q.taglio*k,0)}</td><td class="n">${fmt(q.resta*k,0)}</td><td class="n">${fmt(q.allievo*k,0)}</td><td class="n">${fmt(q.bio*k,0)}</td><td class="n">${fmt(q.g*k,2)}</td><td class="n">${fmt(q.gt*k,2)}</td>${hD?`<td class="n">${fmt(h)}</td>`:""}<td class="n">${q.v>0?fmt(q.v*k,0):"–"}</td></tr>`;}).join("");
+ return`<div class="chart">${istogramma(xs,o,k)}</div>
+  <div class="muted"><span class="dot" style="background:var(--forest)"></span>resta (dopo) <span class="dot d-taglio" style="margin-left:10px"></span>taglio · la barra intera è il prima</div>
+  <div class="scroll"><table><thead><tr><th class="n">Classe</th><th class="n">N/ha</th><th class="n">Taglio</th><th class="n">Non segn.</th><th class="n">Allievi</th><th class="n">Biod.</th><th class="n">G m²/ha</th><th class="n">G prel.</th>${hD?`<th class="n">h m</th>`:""}<th class="n">V m³/ha</th></tr></thead><tbody>${rows}
+  <tr style="font-weight:600"><td>Totale</td><td class="n">${fmt(T.n*k,0)}</td><td class="n">${fmt(T.t*k,0)}</td><td class="n">${fmt(T.r*k,0)}</td><td class="n">${fmt(T.al*k,0)}</td><td class="n">${fmt(T.b*k,0)}</td><td class="n">${fmt(T.g*k,2)}</td><td class="n">${fmt(T.gt*k,2)}</td>${hD?"<td></td>":""}<td class="n">${T.v>0?fmt(T.v*k,0):"–"}</td></tr></tbody></table></div>
+  <p class="muted" style="margin:0">Classi di 5 cm col valore centrale: 10 = 7,5–12,4 cm, 15 = 12,5–17,4 cm e così via. Valori a ettaro.</p>`;}
+function istogramma(xs,o,k){const tot=x=>(o(x).taglio+o(x).resta+o(x).allievo+o(x).bio)*k;
+ const mx=Math.max(1,...xs.map(tot)),bw=30,gap=8,H=140,top=20,L=4,W=L+xs.length*(bw+gap)+gap;
+ let s=`<svg viewBox="0 0 ${W} ${top+H+24}" width="${Math.max(W,300)}" style="max-width:100%;height:auto;display:block" role="img" aria-label="Piante a ettaro per classe diametrica, prima e dopo il taglio">
+  <text x="${L}" y="12" style="fill:var(--muted);font-size:10px">N/ha · massimo ${fmt(mx,0)}</text>`;
+ xs.forEach((x,i)=>{const q=o(x),rt=(q.resta+q.allievo+q.bio)*k,tg=q.taglio*k,X=L+gap+i*(bw+gap),hR=rt/mx*H,hT=tg/mx*H;
+  s+=`<rect x="${X}" y="${top+H-hR}" width="${bw}" height="${hR}" style="fill:var(--forest)"><title>Classe ${x}: restano ${fmt(rt,0)}/ha</title></rect>
+  <rect x="${X}" y="${top+H-hR-hT}" width="${bw}" height="${hT}" style="fill:var(--paint)"><title>Classe ${x}: taglio ${fmt(tg,0)}/ha</title></rect>
+  <text x="${X+bw/2}" y="${top+H+16}" text-anchor="middle" style="fill:var(--muted);font-size:11px">${x}</text>`;});
+ return s+`<line x1="${L}" y1="${top+H}" x2="${W}" y2="${top+H}" style="stroke:var(--muted);stroke-width:1"/></svg>`;}
+function rAltezze(a,c){const PL=a.piante||[],mis=PL.filter(p=>+p.h>0);const ok=c.cur&&!c.cur.ko;
+ let h=`<section class="panel"><h3>Altezze e curva ipsometrica</h3>`;
+ if(ok){h+=`<div class="formula">h = ${fmt(c.cur.a,2)} ${c.cur.b>=0?"+":"−"} ${fmt(Math.abs(c.cur.b),2)} · ln(d) &nbsp; R² ${fmt(c.cur.r2,2)} · ${c.cur.n} altezze misurate</div>
+  <div class="chart">${curvaSvg(PL,c)}</div>
+  ${c.cur.n<10?`<p class="muted" style="margin:0">Con ${c.cur.n} altezze la curva è indicativa: meglio 10–15 piante su più classi.</p>`:""}
+  ${c.cur.r2<0.3&&c.cur.n>=5?`<div class="note">R² basso: le altezze sono molto variabili rispetto al diametro. Controlla le misure.</div>`:""}`;}
+ else h+=`<p class="muted" style="margin:0">${mis.length?`${mis.length} altezze misurate: `:""}${c.cur&&c.cur.ko?esc(c.cur.ko):"Misura l'altezza di almeno 3 piante, meglio 10–15 su classi diverse, per costruire la curva ipsometrica."} ${isFinite(c.H)?`Per ora il volume usa l'altezza media di ${fmt(c.H)} m.`:""}</p>`;
+ h+=`<div class="kv"><div><b>${fmt(c.hDom)}</b><span>h dominante m</span></div><div><b>${c.nDom}</b><span>piante più grosse</span></div><div><b>${isFinite(c.H)?fmt(c.H):"–"}</b><span>h media m</span></div><div><b>${mis.length}</b><span>h misurate</span></div></div>
+  <p class="muted" style="margin:0">Altezza dominante = media delle ${c.nDom} piante più grosse dell'area, cioè 100 a ettaro${isFinite(c.hDom)?(c.hDomMis?", tutte misurate":", in parte stimate dalla curva"):""}. Indica la fertilità della stazione.</p></section>`;
+ return h;}
+function curvaSvg(PL,c){const pts=PL.filter(p=>+p.h>0&&+p.d>0);const ds=PL.map(p=>+p.d).filter(d=>d>0);if(!pts.length||!ds.length)return"";
+ const d0=Math.max(1,Math.min(...ds)),d1=Math.max(...ds),hMax=Math.max(...pts.map(p=>+p.h),c.hD(d1))*1.1;
+ const W=320,H=170,L=30,B=22,T=8,R=8,X=d=>L+(d-d0)/Math.max(1,d1-d0)*(W-L-R),Y=h=>T+(1-h/hMax)*(H-T-B);
+ let path="";for(let i=0;i<=30;i++){const d=d0+(d1-d0)*i/30;path+=(i?"L":"M")+X(d).toFixed(1)+" "+Y(c.hD(d)).toFixed(1);}
+ return`<svg viewBox="0 0 ${W} ${H}" width="${W}" style="max-width:100%;height:auto;display:block" role="img" aria-label="Curva ipsometrica: altezza in funzione del diametro">
+  <line x1="${L}" y1="${H-B}" x2="${W-R}" y2="${H-B}" style="stroke:var(--muted)"/><line x1="${L}" y1="${T}" x2="${L}" y2="${H-B}" style="stroke:var(--muted)"/>
+  <text x="${L-4}" y="${Y(hMax/1.1)+4}" text-anchor="end" style="fill:var(--muted);font-size:10px">${fmt(hMax/1.1,0)}</text><text x="${L-4}" y="${H-B}" text-anchor="end" style="fill:var(--muted);font-size:10px">0</text>
+  <text x="${L}" y="${H-6}" style="fill:var(--muted);font-size:10px">${fmt(d0,0)} cm</text><text x="${W-R}" y="${H-6}" text-anchor="end" style="fill:var(--muted);font-size:10px">${fmt(d1,0)} cm</text>
+  <text x="${(L+W)/2}" y="${H-6}" text-anchor="middle" style="fill:var(--muted);font-size:10px">diametro → · ↑ h m</text>
+  <path d="${path}" style="fill:none;stroke:var(--forest);stroke-width:2"/>
+  ${pts.map(p=>`<circle cx="${X(+p.d).toFixed(1)}" cy="${Y(+p.h).toFixed(1)}" r="3.5" style="fill:var(--paint)"><title>${fmt(+p.d,0)} cm · ${fmt(+p.h)} m</title></circle>`).join("")}</svg>`;}
+function rSnellezza(c){if(!c.snell.length)return"";const al=c.snell.filter(x=>x.stato==="allievo"),alti=c.snell.filter(x=>x.hd>80).sort((a,b)=>b.hd-a.hd);
+ const m=arr=>arr.length?arr.reduce((s,x)=>s+x.hd,0)/arr.length:NaN;
+ return`<section class="panel"><h3>Stabilità · rapporto di snellezza h/d</h3>
+  <div class="kv"><div><b>${fmt(m(c.snell),0)}</b><span>h/d medio rilasci</span></div><div><b>${fmt(m(al),0)}</b><span>h/d medio allievi</span></div>
+  <div><b>${c.snell.filter(x=>x.hd>80).length}</b><span>oltre 80</span></div><div><b>${c.snell.filter(x=>x.hd>100).length}</b><span>oltre 100</span></div></div>
+  ${alti.length?`<div class="scroll"><table><thead><tr><th class="n">N.</th><th>Specie</th><th>Contrassegno</th><th class="n">d cm</th><th class="n">h m</th><th class="n">h/d</th></tr></thead><tbody>
+   ${alti.slice(0,15).map(x=>`<tr><td class="n">${x.i}</td><td>${esc(x.specie)}</td><td>${STATI[x.stato]}</td><td class="n">${fmt(x.d,0)}</td><td class="n">${fmt(x.h)}${x.mis?"":"*"}</td><td class="n" style="${x.hd>100?"color:var(--bad);font-weight:600":""}">${fmt(x.hd,0)}</td></tr>`).join("")}</tbody></table></div>`:`<div class="okline">Nessuna pianta rilasciata con h/d sopra 80.</div>`}
+  <p class="muted" style="margin:0">Calcolato sulle piante che restano. h/d = altezza (m) / diametro (m): sotto 80 la pianta è stabile, sopra 100 è esile e rischia schianti o di piegarsi quando le vicine vengono tolte.${alti.some(x=>!x.mis)?" * altezza stimata dalla curva.":""}</p></section>`;}
+function rGuida(){return`<section class="panel guida"><h2>Guida rapida al rilievo</h2>
+  <h3>Diametro a 1,30 m</h3><ul><li>Si misura a 1,30 m da terra, dal lato a monte in pendenza.</li><li>Fusto biforcato sotto 1,30 m: due fusti. Nel ceduo ogni pollone è un fusto.</li><li>Nodo o deformazione a 1,30 m: misura appena sopra o sotto.</li><li>Fusti ovali: due letture incrociate, l'app fa la media.</li></ul>
+  <h3>g · area basimetrica della pianta</h3><p>Superficie della sezione del fusto a 1,30 m.</p><div class="formula">g = π × d² / 4 &nbsp;(d in m) &nbsp;→&nbsp; g = π × (d/200)² con d in cm</div>
+  <p>10 cm = 0,0079 m² · 20 cm = 0,0314 m² · 40 cm = 0,1257 m². Raddoppiando il diametro g quadruplica.</p>
+  <h3>G · area basimetrica del bosco</h3><div class="formula">G = Σ g × 10.000 / superficie area (m²) &nbsp;→&nbsp; m²/ha</div>
+  <p>Misura quanto il bosco è pieno, è legata al volume e si usa per dosare il diradamento come % di G prelevata. Robinieto adulto denso: circa 20–35 m²/ha.</p>
+  <h3>Classi diametriche</h3><p>Intervalli di 5 cm col valore centrale: 10 = 7,5–12,4 cm, 15 = 12,5–17,4 cm. Velocizzano il rilievo, l'errore è trascurabile e mostrano la struttura:</p>
+  <ul><li><strong>Campana</strong>: coetaneo o monoplano (ceduo, fustaia coetanea).</li><li><strong>J rovesciata</strong>: disetaneo, molte piante piccole e poche grandi.</li><li><strong>Bimodale</strong>: due strati o generazioni (ceduo con matricine).</li></ul>
+  <h3>Soglia di cavallettamento</h3><p>Diametro minimo misurato: 17,5 cm in fustaia, 7,5 cm nel ceduo di robinia. Dichiarala e tienila uguale in tutte le aree.</p>
+  <h3>dg · diametro medio di area basimetrica</h3><div class="formula">dg = √(4 × G / (π × N))</div>
+  <p>Se dopo il taglio dg sale, il diradamento è dal basso (tolte piante piccole). Se scende, è dall'alto: da evitare se toglie le piante migliori.</p>
+  <h3>Altezze, h dominante e volume</h3><p>Misura 10–15 altezze per area su classi diverse: l'app costruisce la curva h = a + b·ln(d) e stima l'altezza di ogni pianta. L'altezza dominante è la media delle 100 piante più grosse a ettaro (10 in 1.000 m²) e indica la fertilità.</p>
+  <div class="formula">V = Σ g × h × f &nbsp;(f ≈ 0,45–0,50 per le latifoglie)</div>
+  <h3>Snellezza h/d</h3><p>Altezza (m) / diametro (m). Sopra 80 la pianta è esile, sopra 100 rischia schianti o di piegarsi dopo il diradamento: attenzione nella scelta degli allievi.</p>
+  <h3>Aree di saggio</h3><ul><li>Raggio 17,84 m = 1.000 m²; due aree su 2,1 ha ≈ 10%.</li><li>In punti tipici, né i migliori né sul margine.</li><li>Pianta di confine: dentro se il centro del fusto è entro il raggio. Un metro in più "a occhio" vale +11% di superficie.</li><li>Registra tutte le piante sopra soglia, anche quelle che restano.</li><li>Con due o più aree il Riepilogo calcola l'errore di campionamento di G.</li></ul></section>`;}
 function rRiepilogo(){const ids=areeDi(S.attivo);const p=P();
  if(!ids.length)return`<div class="panel empty"><strong>Nessun dato</strong>Il riepilogo si compila dalle aree campione.</div>`;
  const cs=ids.map(id=>({a:S.aree[id],c:calc(S.aree[id])})).filter(x=>x.c.sup>0);
- const m=k=>cs.length?cs.reduce((s,x)=>s+(isFinite(x.c[k])?x.c[k]:0),0)/cs.length:NaN;
+ const m=k=>{const v=cs.map(x=>x.c[k]).filter(isFinite);return v.length?v.reduce((s,x)=>s+x,0)/v.length:NaN;};
  const supTot=cs.reduce((s,x)=>s+x.c.sup,0),ha=+p.supHa||0;
  const Vt=m("Vtha")*ha,q=Vt*(+p.densita||0);
  const sp={};cs.forEach(x=>Object.entries(x.c.sp).forEach(([s,v])=>{sp[s]=(sp[s]||0)+v.gt*x.c.k/cs.length;}));
@@ -379,10 +530,22 @@ function rRiepilogo(){const ids=areeDi(S.attivo);const p=P();
   <div class="kv"><div><b>${fmt(m("Nha"),0)}</b><span>N/ha prima</span></div><div><b>${fmt(m("Gha"))}</b><span>G m²/ha prima</span></div>
   <div><b>${fmt(m("Gtha"))}</b><span>G prel. m²/ha</span></div><div><b>${fmt(m("pctG"),0)}%</b><span>prelievo G</span></div></div>
   <p class="muted" style="margin:0">Superficie campionata <span class="mono">${fmt(supTot,0)} m²</span> su ${fmt(ha,2)} ha = <span class="mono">${fmt(rapp)}%</span>.
-  ${rapp<5?` <span style="color:var(--warn);font-weight:600">Sotto il riferimento di 1.000 m² ogni 2 ha (5%).</span>`:""}</p></section>
+  ${rapp<5?` <span style="color:var(--warn);font-weight:600">Sotto il riferimento di 1.000 m² ogni 2 ha (5%).</span>`:""}</p>
+  <div class="kv"><div><b>${fmt(m("dgPre"))}</b><span>dg prima cm</span></div><div><b>${fmt(m("dgPost"))}</b><span>dg dopo cm</span></div>
+  <div><b>${fmt(m("Vha"),0)}</b><span>V m³/ha prima</span></div><div><b>${fmt(m("hDom"))}</b><span>h dominante m</span></div></div>
+  ${(()=>{const t=tipoDir(m("dgPre"),m("dgPost"),cs.reduce((s,x)=>s+x.c.Nt,0));return t?`<div class="${t.bad?"note bad":"okline"}">${esc(t.t)}</div>`:"";})()}</section>
+  ${rVariabilita(cs)}
+  <section class="panel"><h3>Classi diametriche · media delle aree</h3>${(()=>{const agg={};cs.forEach(x=>{const w=x.c.k/cs.length;for(const [cl,q] of Object.entries(x.c.cl)){const o=agg[cl]||(agg[cl]={taglio:0,resta:0,allievo:0,bio:0,g:0,gt:0,v:0,vt:0});for(const f in o)o[f]+=(q[f]||0)*w;}});
+   const Ntot=cs.reduce((s,x)=>s+x.c.N,0);return Ntot?rClassi(agg,1,null)+`<div style="font-weight:500">${esc(struttura(agg,Ntot).t)}</div>`:`<p class="muted" style="margin:0">Nessuna pianta registrata.</p>`;})()}</section>
+  <section class="panel"><h3>Copertura dopo il taglio</h3><div class="scroll"><table><thead><tr><th>Area</th><th class="n">Prima %</th><th class="n">Dopo %</th><th>Esito</th></tr></thead><tbody>
+  ${cs.map(x=>{const d=num(x.a.copDopo),rob=/robin|castagn/i.test((x.a.categoria||"")+" "+(x.a.governo||""));const ok=d>0&&(rob?d>50:d>=50);
+   return`<tr><td>${esc(x.a.nome)}</td><td class="n">${esc(x.a.copPrima||"–")}</td><td class="n">${esc(x.a.copDopo||"–")}</td><td>${!(d>0)?`<span style="color:var(--warn);font-weight:600">da stimare</span>`:ok?`<span class="okline">conforme</span>`:`<span style="color:var(--bad);font-weight:600">troppo bassa</span>`}</td></tr>`;}).join("")}</tbody></table></div>
+  <p class="muted" style="margin:0">A fine diradamento la copertura deve restare almeno al 50%; nei robinieti e castagneti deve superarlo (art. 22 e art. 55, c. 5).</p></section>
   <section class="panel"><h3>Dati per la comunicazione semplice</h3>
   <div class="scroll"><table><tbody>
   <tr><td>Superficie di intervento</td><td class="n">${fmt(ha,2)} ha</td></tr>
+  <tr><td>Piante da tagliare (stima)</td><td class="n">${fmt(m("Ntha")*ha,0)}</td></tr>
+  <tr><td>Area basimetrica da prelevare</td><td class="n">${fmt(m("Gtha")*ha)} m²</td></tr>
   <tr><td>Volume da prelevare (stima)</td><td class="n">${fmt(Vt,0)} m³</td></tr>
   <tr><td>Equivalente in peso (${p.densita} q/m³)</td><td class="n">${fmt(q,0)} q</td></tr>
   ${spr.slice(0,3).map(([s,g],i)=>`<tr><td>${i===0?"Specie principale":i===1?"Specie secondaria":"Altre specie"}: ${esc(s)}</td><td class="n">${fmt(gtot?Vt*g/gtot:0,0)} m³</td></tr>`).join("")}
@@ -395,6 +558,17 @@ function rRiepilogo(){const ids=areeDi(S.attivo);const p=P();
   <div class="row"><button class="primary" data-exp="piante">Piante (CSV)</button><button class="primary" data-exp="aree">Aree e punti (CSV)</button></div>
   <p class="muted" style="margin:0">CSV con separatore punto e virgola, si apre in Excel o QGIS (coordinate in EPSG:32632).</p></section>`;}
 
+/* Errore di campionamento di G tra le aree (t di Student al 95%) */
+const T95=[NaN,12.71,4.30,3.18,2.78,2.57,2.45,2.36,2.31,2.26,2.23];
+function rVariabilita(cs){const n=cs.length;
+ if(n<2)return`<section class="panel"><h3>Variabilità tra le aree</h3><p class="muted" style="margin:0">Con una sola area non si può stimare l'errore di campionamento: aggiungine almeno un'altra in un punto diverso del bosco.</p></section>`;
+ const v=cs.map(x=>x.c.Gha),mu=v.reduce((s,x)=>s+x,0)/n,sd=Math.sqrt(v.reduce((s,x)=>s+(x-mu)**2,0)/(n-1)),cv=mu?sd/mu*100:NaN;
+ const t=T95[n-1]||1.96,err=mu?t*sd/Math.sqrt(n)/mu*100:NaN;
+ const nNec=isFinite(cv)&&cv>0?Math.ceil((1.96*cv/20)**2):NaN;
+ return`<section class="panel"><h3>Variabilità tra le aree · G</h3>
+  <div class="kv"><div><b>${fmt(mu)}</b><span>G media m²/ha</span></div><div><b>${fmt(sd)}</b><span>dev. standard</span></div><div><b>${fmt(cv,0)}%</b><span>coeff. variazione</span></div><div><b>±${fmt(err,0)}%</b><span>errore al 95%</span></div></div>
+  ${err>20?`<div class="note">Errore di campionamento oltre il 20%: le aree sono molto diverse tra loro. ${isFinite(nNec)&&nNec>n?`Per scendere intorno al 20% servirebbero circa ${nNec} aree, oppure dividi il bosco in zone omogenee.`:"Valuta di dividere il bosco in zone omogenee."}</div>`:`<div class="okline">Errore entro il 20%: il campione è adeguato.</div>`}
+  <p class="muted" style="margin:0">Errore = t × deviazione standard / √n, in % della media (t di Student al 95% con ${n-1} ${n===2?"grado":"gradi"} di libertà = ${fmt(t,2)}). Con due sole aree t è alto: l'errore è prudenziale.</p></section>`;}
 function inSospensione(d=new Date()){const m=d.getMonth()+1,g=d.getDate();return (m===4||m===5)||(m===6&&g<=15);}
 function rTutela(p,ids,ha){if(!p.tutela)return"";
  const req=ha>0?Math.ceil(ha*10000/2500):0;let viv=0,mor=0,bioP=0;
@@ -476,14 +650,19 @@ function gpsUsa(){const m=gpsMedia();if(!m)return;const u=UTM.toUTM(m.lat,m.lon)
 function curArea(){return S.aree[view.id];}
 function nuovaArea(){const n=areeDi(S.attivo).length+1,id=uid();
  S.aree[id]={cantiere:S.attivo,nome:"AC"+n,forma:"cerchio",raggio:17.84,superficie:"",categoria:"",tipo:"",governo:"",eta:"",esposizione:"",pendenza:"",hMedia:"",
-  copPrima:"",copDopo:"",soglia:17.5,data:new Date().toISOString().slice(0,10),note:"",punti:[],piante:[],creata:new Date().toISOString()};
+  copPrima:"",copDopo:"",soglia:isCeduo([P().criterio,P().nome].join(" "))?SOGLIA_CEDUO:SOGLIA_FUSTAIA,data:new Date().toISOString().slice(0,10),note:"",punti:[],piante:[],creata:new Date().toISOString()};
  mark(id);view={...view,name:"area",id,tab:"punti",confirm:null,ptTipo:"Centro area"};render();toast("Area creata: inserisci il centro");}
-function addPianta(){const a=curArea();const d=parseFloat(String($("#dIn").value).replace(",","."));
- if(!(d>0&&d<300)){toast("Inserisci un diametro valido in cm");$("#dIn").focus();return;}
- const soglia=+a.soglia||0;if(soglia&&d<soglia){toast(`Sotto la soglia di ${soglia} cm`);}
- const h=parseFloat(String($("#hIn").value).replace(",","."));
- a.piante=a.piante||[];a.piante.push({id:uid(),specie:view.nuovaSp,d:Math.round(d*10)/10,h:h>0?h:null,stato:view.nuovoStato,note:$("#nIn").value.trim()});
- view.nuovoD=Math.round(d);mark(view.id);render();toast(`Pianta ${a.piante.length}: ${view.nuovaSp} ${Math.round(d)} cm · ${STATI[view.nuovoStato]}`);}
+function addPianta(dCl){const a=curArea();let d,d2=null;
+ if(dCl){d=+dCl;}else{d=num($("#dIn").value);const x=num(($("#d2In")||{}).value);if(x>0)d2=x;}
+ if(!(d>0&&d<300)){toast("Inserisci un diametro valido in cm");const el=$("#dIn");if(el)el.focus();return;}
+ if(d2&&!(d2<300)){toast("Seconda lettura non valida");return;}
+ const dd=d2?Math.round((d+d2)/2*10)/10:Math.round(d*10)/10;
+ const soglia=num(a.soglia)||0;if(soglia&&dd<soglia){toast(`Sotto la soglia di ${fmt(soglia)} cm`);}
+ const h=num($("#hIn").value),cep=String($("#cepIn").value||"").trim(),dist=num($("#distIn").value),nota=$("#nIn").value.trim();
+ a.piante=a.piante||[];a.piante.push({id:uid(),specie:view.nuovaSp,d:dd,d1:d2?d:null,d2:d2||null,classe:!!dCl,h:h>0?h:null,stato:view.nuovoStato,note:nota,cep:cep||null,dist:dist>0?dist:null});
+ view.nuovoD=Math.round(dd);view.nuovaCep=cep;view.nuovoH="";view.nuovaDist="";view.nuovaNota="";mark(view.id);render();
+ const fuori=a.forma==="cerchio"&&dist>num(a.raggio);
+ toast(fuori?`Attenzione: ${fmt(dist)} m è oltre il raggio di ${fmt(num(a.raggio),2)} m`:`Pianta ${a.piante.length}: ${view.nuovaSp} ${dCl?"classe "+dCl:fmt(dd,d2?1:0)+" cm"} · ${STATI[view.nuovoStato]}`);}
 function addPunto(){const a=curArea();let E,N;
  if((view.coordMode||"utm")==="utm"){E=parseFloat(($("#cE").value||"").replace(",","."));N=parseFloat(($("#cN").value||"").replace(",","."));}
  else{const ll=UTM.parseLatLon($("#cLL").value);if(ll){const u=UTM.toUTM(ll.lat,ll.lon);E=u.E;N=u.N;}}
@@ -507,10 +686,11 @@ function ripristina(file){const r=new FileReader();r.onload=()=>{try{const o=JSO
   ensureAttivo();saveLocal();retryAll();view.name="archivio";render();toast(`Ripristinati ${nc} cantieri e ${na} aree`);}
  catch(e){toast("File di backup non valido");}};r.readAsText(file);}
 async function esporta(kind){const n=v=>v==null||v===""?"":String(v).replace(".",",");let rows,name;
- if(kind==="piante"){rows=[["area","n","specie","diametro_cm","altezza_m","contrassegno","nota"]];
-  areeDi(S.attivo).map(id=>S.aree[id]).forEach(a=>(a.piante||[]).forEach((p,i)=>rows.push([a.nome,i+1,p.specie,n(p.d),n(p.h),STATI[p.stato],p.note])));name=slug()+"_piante.csv";}
- else{rows=[["area","punto","E_utm32n","N_utm32n","lat","lon","quota_m","nota","superficie_m2","categoria","governo","N_ha","G_ha","G_prel_ha","prelievo_G_pct","cop_prima","cop_dopo"]];
-  areeDi(S.attivo).map(id=>S.aree[id]).forEach(a=>{const c=calc(a);const base=[n(fmt(c.sup,0).replace(/\./g,"")),a.categoria,a.governo,n(c.Nha.toFixed(0)),n(c.Gha.toFixed(2)),n(c.Gtha.toFixed(2)),n(c.pctG.toFixed(1)),a.copPrima,a.copDopo];
+ if(kind==="piante"){rows=[["area","n","specie","diametro_cm","lettura1_cm","lettura2_cm","classe_cm","g_m2","altezza_misurata_m","altezza_stimata_m","h_d","contrassegno","ceppaia","distanza_centro_m","nota"]];
+  areeDi(S.attivo).map(id=>S.aree[id]).forEach(a=>{const c=calc(a);(a.piante||[]).forEach((p,i)=>{const h=c.hOf(p),hd=isFinite(h)&&+p.d>0?h/(+p.d/100):NaN;
+   rows.push([a.nome,i+1,p.specie,n(p.d),n(p.d1),n(p.d2),CL(p.d),n(gOf(p.d).toFixed(5)),n(p.h),isFinite(h)?n(h.toFixed(1)):"",isFinite(hd)?n(hd.toFixed(0)):"",STATI[p.stato],p.cep||"",n(p.dist),p.note]);});});name=slug()+"_piante.csv";}
+ else{rows=[["area","punto","E_utm32n","N_utm32n","lat","lon","quota_m","nota","superficie_m2","categoria","governo","N_ha","G_ha","G_prel_ha","prelievo_G_pct","cop_prima","cop_dopo","dg_prima_cm","dg_dopo_cm","V_ha","V_prel_ha","h_dominante_m","tipo_diradamento","struttura"]];
+  areeDi(S.attivo).map(id=>S.aree[id]).forEach(a=>{const c=calc(a);const base=[n(fmt(c.sup,0).replace(/\./g,"")),a.categoria,a.governo,n(c.Nha.toFixed(0)),n(c.Gha.toFixed(2)),n(c.Gtha.toFixed(2)),n(c.pctG.toFixed(1)),a.copPrima,a.copDopo,isFinite(c.dgPre)?n(c.dgPre.toFixed(1)):"",isFinite(c.dgPost)?n(c.dgPost.toFixed(1)):"",isFinite(c.Vha)?n(c.Vha.toFixed(0)):"",isFinite(c.Vtha)?n(c.Vtha.toFixed(0)):"",isFinite(c.hDom)?n(c.hDom.toFixed(1)):"",c.tipo?c.tipo.k:"",c.strut.k||""];
    const pts=a.punti&&a.punti.length?a.punti:[null];pts.forEach(pt=>{const ll=pt?UTM.fromUTM(pt.E,pt.N):null;
     rows.push([a.nome,pt?pt.tipo:"",pt?n(pt.E):"",pt?n(pt.N):"",ll?n(ll.lat.toFixed(6)):"",ll?n(ll.lon.toFixed(6)):"",pt?pt.quota:"",pt?pt.note:"",...base]);});});name=slug()+"_aree_punti.csv";}
  const data="\ufeff"+csv(rows);
@@ -525,6 +705,8 @@ document.addEventListener("click",e=>{const b=e.target.closest("button");if(!b)r
  if(d.s){view.nuovoStato=d.s;render();return;}
  if(d.dd){const v=parseFloat(String($("#dIn").value).replace(",","."))||0;view.nuovoD=Math.max(5,Math.round(v+(+d.dd)));render();return;}
  if(d.cm){view.coordMode=d.cm;render();return;}
+ if(d.md){view.modoD=d.md;render();return;}
+ if(d.cl){addPianta(+d.cl);return;}
  if(d.askp){view.confirm="p"+d.askp;render();return;}
  if(d.delp){const a=curArea();a.piante=a.piante.filter(p=>p.id!==d.delp);view.confirm=null;mark(view.id);render();toast("Pianta eliminata");return;}
  if(d.askt){view.confirm="t"+d.askt;render();return;}
@@ -532,6 +714,7 @@ document.addEventListener("click",e=>{const b=e.target.closest("button");if(!b)r
  if(d.exp){esporta(d.exp);return;}
  const act=d.act;if(!act)return;
  if(act==="gpsStart"){gpsStart();return;}if(act==="gpsStop"){gpsStop();return;}if(act==="gpsUsa"){gpsUsa();return;}
+ if(act==="cepNext"){const v=String(($("#cepIn")||{}).value||view.nuovaCep||"").trim(),n=parseInt(v,10);view.nuovaCep=isFinite(n)?String(n+1):(v?v+"1":"1");render();return;}
  if(act==="nuovaArea")nuovaArea();else if(act==="addPianta")addPianta();else if(act==="addPunto")addPunto();
  else if(act==="askDelArea"){view.confirm="area";render();}
  else if(act==="askDelCantiere"){view.confirm="cantiere";render();}
@@ -543,16 +726,18 @@ document.addEventListener("click",e=>{const b=e.target.closest("button");if(!b)r
 
 document.addEventListener("input",e=>{const t=e.target;
  if(t.dataset.f){const a=curArea();if(!a)return;a[t.dataset.f]=t.value;mark(view.id);
+  if(t.dataset.f==="governo"&&isCeduo(t.value)&&(!num(a.soglia)||num(a.soglia)===SOGLIA_FUSTAIA)){a.soglia=SOGLIA_CEDUO;toast("Soglia di cavallettamento portata a 7,5 cm per il ceduo");}
   if(t.dataset.f==="forma"||t.dataset.f==="raggio"||t.dataset.f==="superficie"){const el=$("#app .panel p.muted .mono");if(el)el.textContent=fmt(supArea(a),0)+" m²";}
   if(t.tagName==="SELECT")render();return;}
  if(t.dataset.pf){const p=P();p[t.dataset.pf]=t.value;mark("c:"+S.attivo);if(t.tagName==="SELECT"){render();return;}$("#hdrSub").textContent=p.nome||[p.comune,p.localita].filter(Boolean).join(" · ");return;}
  if(t.id==="spSel"){view.nuovaSp=t.value;render();return;}
  if(t.id==="dIn"){view.nuovoD=t.value;return;}
+ if(t.id==="cepIn"){view.nuovaCep=t.value;return;}if(t.id==="hIn"){view.nuovoH=t.value;return;}if(t.id==="distIn"){view.nuovaDist=t.value;return;}if(t.id==="nIn"){view.nuovaNota=t.value;return;}
  if(["cE","cN","cLL","cQ","cNote"].includes(t.id)){view[t.id]=t.value;if(t.id==="cE"||t.id==="cN"||t.id==="cLL")view.cAcc=null;if(t.id!=="cQ"&&t.id!=="cNote"){clearTimeout(view._ct);view._ct=setTimeout(render,350);}return;}
  if(t.id==="ptTipo"){view.ptTipo=t.value;}});
 document.addEventListener("change",e=>{if(e.target.id==="restoreIn"&&e.target.files&&e.target.files[0]){ripristina(e.target.files[0]);e.target.value="";}});
 window.addEventListener("online",setSync);window.addEventListener("offline",setSync);
-document.addEventListener("keydown",e=>{if(e.key==="Enter"&&(e.target.id==="dIn"||e.target.id==="hIn"||e.target.id==="nIn")){e.preventDefault();addPianta();}});
+document.addEventListener("keydown",e=>{if(e.key==="Enter"&&["dIn","d2In","hIn","nIn","cepIn","distIn"].includes(e.target.id)){e.preventDefault();if((view.modoD||"esatto")==="esatto")addPianta();}});
 
 ensureAttivo();saveLocal();render();initDb();
 try{if(navigator.storage&&navigator.storage.persist){navigator.storage.persisted().then(p=>p||navigator.storage.persist()).then(p=>{persistito=!!p;if(view.name==="archivio")render();}).catch(()=>{});}}catch(e){}

@@ -1,6 +1,6 @@
 /* Contrassegnatura di campo – funzionamento offline.
    Quando pubblichi una nuova versione di index.html, aumenta il numero di VERSIONE. */
-const VERSIONE = "contrassegnatura-v2.0";
+const VERSIONE = "contrassegnatura-v2.1";
 const FILE_APP = ["./", "./index.html", "./manifest.webmanifest", "./icon-192.png", "./icon-512.png"];
 
 self.addEventListener("install", e => {
